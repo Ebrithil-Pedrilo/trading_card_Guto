@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Age of Guthology - Protótipo</title>
+<style>
+:root{
+  --bg:#080b12; --panel:#101722; --panel2:#151e2b; --line:#304155;
+  --text:#eef3f8; --muted:#9cadbd; --gold:#e7c979; --gold2:#a87b2d;
+  --red:#d86363; --blue:#5ea8ff; --violet:#b083ff; --green:#7bd38d;
+  --mil:#5d87c8; --inf:#b68a47;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--text); font-family:Segoe UI,Arial,sans-serif;
+  background:
+    radial-gradient(circle at 50% -10%,rgba(169,128,65,.25),transparent 36%),
+    radial-gradient(circle at 0 30%,rgba(91,76,164,.18),transparent 32%),
+    linear-gradient(180deg,#05070d,#0a0f18 45%,#05070d);
+}
+button,select{font:inherit}
+button{
+  border:1px solid #466078; background:#101b2a; color:#f6efe0; border-radius:8px;
+  padding:8px 10px; cursor:pointer; font-weight:700;
+}
+button:hover{border-color:var(--gold); color:#fff}
+button:disabled{opacity:.45; cursor:not-allowed}
+select{background:#08111d; color:var(--text); border:1px solid var(--line); border-radius:7px; padding:8px}
+.app{min-height:100vh; display:flex; flex-direction:column}
+.topbar{
+  position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:10px 14px; background:rgba(6,10,16,.92); border-bottom:1px solid var(--line);
+  backdrop-filter:blur(10px);
+}
+.brand{font-family:Georgia,serif; color:var(--gold); letter-spacing:2px; font-size:24px; font-weight:800}
+.pill{border:1px solid var(--line); background:#0b1320; border-radius:999px; padding:6px 10px; color:var(--muted)}
+.pill b{color:var(--text)}
+.grow{flex:1}
+.setup{max-width:1100px; margin:28px auto; padding:0 16px}
+.setup h1{font-family:Georgia,serif; font-size:46px; margin:0 0 8px; color:var(--gold); letter-spacing:3px}
+.setup p{color:var(--muted); margin:0 0 18px}
+.setup-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+.setup-card,.rules-card{
+  border:1px solid var(--line); background:rgba(16,23,34,.86); border-radius:10px; padding:16px;
+  box-shadow:0 18px 40px rgba(0,0,0,.25);
+}
+.setup-card h2,.rules-card h2{margin:0 0 12px; color:#fff}
+.myth-row{display:grid; grid-template-columns:110px 1fr; gap:12px; align-items:center; margin:10px 0}
+.myth-portrait{
+  width:110px; height:110px; border-radius:8px; border:1px solid #46576c; background:#172030 center/cover no-repeat;
+  box-shadow:inset 0 0 22px rgba(0,0,0,.55);
+}
+.rules-card ul{margin:8px 0 0; padding-left:20px; color:#cdd8e5; line-height:1.45}
+.battlefield{display:grid; grid-template-columns:290px minmax(0,1fr) 330px; gap:12px; padding:12px; flex:1}
+.side,.center,.logbox{min-width:0}
+.player{
+  border:1px solid var(--line); border-radius:10px; background:rgba(16,23,34,.88); overflow:hidden; margin-bottom:12px;
+}
+.player.attacker{border-color:var(--red); box-shadow:0 0 0 1px rgba(216,99,99,.25)}
+.player.defender{border-color:var(--blue); box-shadow:0 0 0 1px rgba(94,168,255,.2)}
+.player-head{display:flex; gap:10px; padding:10px; background:#0d1622; border-bottom:1px solid var(--line)}
+.avatar{width:72px; height:72px; border-radius:8px; border:1px solid #46576c; background:#1a2432 center/cover no-repeat; flex:0 0 auto}
+.pname{font-size:18px; font-weight:900}
+.stats{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+.stat{padding:4px 7px; border:1px solid var(--line); border-radius:999px; color:#dce8f4; font-size:13px; background:#07101c}
+.life{color:#ffd2d2}.dev{color:#ffe3a0}.mana{color:#bfe2ff}
+.commander{padding:10px; border-bottom:1px solid var(--line); color:#cbd8e5; font-size:13px; line-height:1.35}
+.commander b{color:var(--gold)}
+.hand{padding:10px}
+.hand-title{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; color:var(--muted); font-size:13px}
+.cards{display:flex; flex-wrap:wrap; gap:8px}
+.card{
+  width:132px; min-height:174px; border:1px solid #45586f; border-radius:8px; padding:8px;
+  background:linear-gradient(180deg,#1b2533,#0d131d); position:relative; box-shadow:0 8px 20px rgba(0,0,0,.22);
+}
+.card.unit{border-color:#526b8d}.card.spell{border-color:#695490}.card.location{border-color:#8a6e35}
+.card h4{margin:18px 0 5px; font-size:13px; line-height:1.05; min-height:28px}
+.card .cost{position:absolute; top:6px; left:6px; width:23px; height:23px; border-radius:50%; background:#08111d; border:1px solid var(--gold2); display:flex; align-items:center; justify-content:center; color:var(--gold); font-weight:900}
+.type{font-size:11px; color:var(--muted); text-transform:uppercase}
+.mini{font-size:12px; color:#c9d5df; line-height:1.25}
+.mi{display:flex; gap:5px; margin:6px 0}
+.mi span{flex:1; border-radius:6px; padding:4px; text-align:center; font-weight:900}
+.m{background:rgba(93,135,200,.24); color:#cfe3ff}.i{background:rgba(182,138,71,.24); color:#ffe3b1}
+.card-actions{display:flex; flex-direction:column; gap:5px; margin-top:7px}
+.card-actions button{font-size:12px; padding:6px}
+.local-wrap{display:grid; grid-template-columns:270px minmax(0,1fr); gap:12px; margin-bottom:12px}
+.local-panel,.phase-panel,.zone{
+  border:1px solid var(--line); border-radius:10px; background:rgba(16,23,34,.86);
+}
+.local-panel{padding:12px}
+.local-panel h3,.phase-panel h3,.zone h3{margin:0 0 8px}
+.local-art{
+  height:114px; border:1px solid #5d4c2d; border-radius:8px; margin-bottom:8px;
+  background:
+    radial-gradient(circle at 50% 40%,rgba(255,216,126,.36),transparent 34%),
+    linear-gradient(135deg,#2b2116,#101722 60%,#382c18);
+  display:flex; align-items:center; justify-content:center; font-size:48px;
+}
+.location-choice{display:flex; gap:10px; flex-wrap:wrap}
+.location-choice .card{width:160px}
+.phase-panel{padding:12px}
+.phase-controls{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.zones{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.zone{padding:10px; min-height:220px}
+.zone.military{border-color:rgba(93,135,200,.7)}
+.zone.influence{border-color:rgba(182,138,71,.75)}
+.unit-row{
+  display:grid; grid-template-columns:22px 1fr auto; gap:7px; align-items:center;
+  padding:7px; border:1px solid #36495e; border-radius:8px; background:#0b1320; margin-bottom:7px;
+}
+.unit-row.exhausted{opacity:.55; filter:saturate(.6)}
+.unit-row .name{font-weight:800; font-size:13px}
+.unit-row .tags{font-size:11px; color:var(--muted)}
+.unit-pow{display:flex; gap:4px; font-size:12px; font-weight:900}
+.unit-pow span{padding:3px 5px; border-radius:5px}
+.unit-buttons{grid-column:2/4; display:flex; gap:5px; flex-wrap:wrap}
+.unit-buttons button{font-size:11px; padding:4px 6px}
+.logbox{border:1px solid var(--line); border-radius:10px; background:rgba(6,10,16,.88); padding:10px; display:flex; flex-direction:column; min-height:0}
+.logbox h3{margin:0 0 8px}
+.log{overflow:auto; flex:1; min-height:620px; max-height:calc(100vh - 120px); color:#cbd8e5; font-size:13px; line-height:1.35}
+.log div{border-bottom:1px solid rgba(255,255,255,.06); padding:5px 0}
+.winner{
+  position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.72); display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.winner-card{max-width:520px; border:1px solid var(--gold2); background:#111926; border-radius:12px; padding:22px; text-align:center}
+.winner-card h2{font-family:Georgia,serif; color:var(--gold); font-size:34px; margin:0 0 10px}
+.small-note{color:var(--muted); font-size:12px; margin-top:8px}
+@media(max-width:1100px){
+  .battlefield{grid-template-columns:1fr}
+  .local-wrap{grid-template-columns:1fr}
+  .log{min-height:220px}
+}
+@media(max-width:760px){
+  .setup-grid,.zones{grid-template-columns:1fr}
+  .brand{font-size:19px}.card{width:126px}
+}
+</style>
+</head>
+<body>
+<div id="app" class="app"></div>
+<script>
+const $ = s => document.querySelector(s);
+const clone = x => JSON.parse(JSON.stringify(x));
+
+const MYTHICS = {
+  ares:{
+    nome:'Ares, Sangue da Guerra', img:'rift-assets/cards/volgar-o-tempestario.webp',
+    passiva:'Se vencer o combate militar por 5 ou mais, pode declarar um combate militar extra.',
+    ativo:'Uma vez por turno: pague 3 de vida para dar +2 Militar a uma unidade na Zona Militar.',
+    active:'ares'
+  },
+  athena:{
+    nome:'Atena, Olhos da Estrategia', img:'rift-assets/cards/zeus-senhor-do-olimpo.webp',
+    passiva:'Quando vence o conflito de influencia, ganha +1 devocao adicional.',
+    ativo:'Uma vez por turno: de +2 Influencia a uma unidade na Zona de Influencia.',
+    active:'athena'
+  },
+  odin:{
+    nome:'Odin, Senhor dos Pressagios', img:'rift-assets/cards/bjorn-rei-do-inverno.webp',
+    passiva:'A primeira carta que voce joga em cada turno custa 1 a menos.',
+    ativo:'Uma vez por turno: compre 1 carta.',
+    active:'odin'
+  },
+  anubis:{
+    nome:'Anubis, Juiz dos Mortos', img:'rift-assets/cards/morgath-almirante-afogado.webp',
+    passiva:'Quando uma unidade inimiga morre em combate, ganhe 1 devocao.',
+    ativo:'Uma vez por turno: sacrifique sua menor unidade para causar 2 de dano ao oponente.',
+    active:'anubis'
+  }
+};
+
+const CARDS = {
+  hoplita:{nome:'Hoplita Jurado', tipo:'unit', custo:1, m:2, i:1, tags:['soldado'], texto:'Corpo barato para segurar zona.'},
+  guerreiro:{nome:'Guerreiro de Bronze', tipo:'unit', custo:2, m:3, i:1, tags:['soldado'], texto:'Forte no combate militar.'},
+  oraculo:{nome:'Oraculo da Colina', tipo:'unit', custo:2, m:0, i:4, tags:['oraculo'], support:true, texto:'Pode zerar Influencia para apoiar a maior unidade militar.'},
+  sacerdotisa:{nome:'Sacerdotisa do Voto', tipo:'unit', custo:2, m:1, i:3, tags:['sacerdote'], texto:'Boa para disputar Locais Sagrados.'},
+  guarda:{nome:'Guarda do Santuario', tipo:'unit', custo:3, m:2, i:3, tags:['guardiao'], texto:'Flexivel nas duas zonas.'},
+  falange:{nome:'Falange Sagrada', tipo:'unit', custo:3, m:5, i:0, tags:['soldado'], texto:'Pressao militar pura.'},
+  navio:{nome:'Navio Votivo', tipo:'unit', custo:3, m:3, i:2, tags:['navio'], texto:'Melhora muito em locais de mar.'},
+  musa:{nome:'Musa Inspiradora', tipo:'unit', custo:3, m:1, i:5, tags:['oraculo'], support:true, texto:'Apoio alto para Militar ou Influencia.'},
+  campeao:{nome:'Campeao Mortal', tipo:'unit', custo:4, m:5, i:2, tags:['heroi'], texto:'Ameaca de fim de partida.'},
+  titanete:{nome:'Filho de Tita', tipo:'unit', custo:5, m:6, i:3, tags:['monstro'], texto:'Grande nas duas formas de vitoria.'},
+
+  pressagio:{nome:'Pressagio', tipo:'spell', custo:1, texto:'Compre 2 cartas.'},
+  hino:{nome:'Hino de Devocao', tipo:'spell', custo:2, texto:'Ganhe 2 devocao.'},
+  lanca:{nome:'Lanca Divina', tipo:'spell', custo:2, texto:'Cause 3 de dano ao oponente.'},
+  escudo:{nome:'Escudo Consagrado', tipo:'spell', custo:1, texto:'Sua maior unidade ganha +1 Militar e +1 Influencia neste turno.'}
+};
+
+const DECK_BASE = [
+  'hoplita','hoplita','hoplita','guerreiro','guerreiro','oraculo','oraculo','sacerdotisa','sacerdotisa',
+  'guarda','guarda','falange','falange','navio','musa','campeao','titanete',
+  'pressagio','pressagio','hino','hino','lanca','lanca','escudo','escudo'
+];
+
+const LOCATIONS = {
+  arena:{nome:'Arena de Ares', icon:'⚔', conquista:2, passiva:'Todas as unidades na Zona Militar recebem +1 Militar.', vitoria:'O vencedor causa 2 de dano ao oponente.', effect:'damage2'},
+  templo:{nome:'Templo de Atena', icon:'🦉', conquista:2, passiva:'Todas as unidades na Zona de Influencia recebem +1 Influencia.', vitoria:'O vencedor compra 1 carta e ganha +1 devocao.', effect:'drawDev'},
+  delfos:{nome:'Oraculo de Delfos', icon:'✦', conquista:3, passiva:'A primeira carta de cada jogador no turno custa 1 a menos.', vitoria:'O vencedor compra 2 cartas.', effect:'draw2'},
+  porto:{nome:'Porto de Poseidon', icon:'≈', conquista:2, passiva:'Navios recebem +2 Militar.', vitoria:'O vencedor cura 3 de vida.', effect:'heal3'},
+  necropole:{nome:'Necropole de Anubis', icon:'☥', conquista:1, passiva:'Combates militares tendem a gerar devocao para Anubis.', vitoria:'O vencedor retorna uma unidade do descarte para a mao.', effect:'revive'},
+  olimpo:{nome:'Monte Olimpo', icon:'▲', conquista:4, passiva:'Ativos de comandante definem o turno.', vitoria:'O vencedor ganha +2 devocao adicional.', effect:'dev2'}
+};
+const LOCATION_IDS = Object.keys(LOCATIONS);
+
+let state = null;
+let uidSeq = 1;
+
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function novoPlayer(nome, mythic){
+  const locDeck = shuffle(LOCATION_IDS.slice());
+  const p = {
+    nome, mythic, vida:30, devocao:0, mana:0, manaMax:0, deck:shuffle(DECK_BASE.slice()),
+    mao:[], descarte:[], unidades:[], locDeck, locChoices:[], activeUsed:false, firstCardPlayed:false
+  };
+  refillLocChoices(p);
+  return p;
+}
+
+function draw(p,n=1){
+  for(let k=0;k<n;k++){
+    if(!p.deck.length){
+      p.deck = shuffle(p.descarte.filter(id => CARDS[id]));
+      p.descarte = [];
+    }
+    if(p.deck.length) p.mao.push(p.deck.pop());
+  }
+}
+
+function refillLocChoices(p){
+  while(p.locChoices.length<3 && p.locDeck.length) p.locChoices.push(p.locDeck.shift());
+  if(!p.locDeck.length && p.locChoices.length<3) p.locDeck = shuffle(LOCATION_IDS.slice());
+}
+
+function iniciarJogo(){
+  uidSeq = 1;
+  const p1 = novoPlayer('Jogador 1', $('#p1Mythic').value);
+  const p2 = novoPlayer('Jogador 2', $('#p2Mythic').value);
+  state = {
+    turno:1, atacante:0, fase:'local', currentLocation:null, combatModel:$('#combatModel').value,
+    exhaustion:$('#exhaustion').value==='sim', log:[], gameOver:null, militaryResolved:false,
+    influenceResolved:false, extraMilitary:false
+  };
+  state.players = [p1,p2];
+  for(const p of state.players){ draw(p,5); p.manaMax=3; p.mana=3; }
+  log('Partida iniciada. O defensor escolhe um Local Sagrado.');
+  render();
+}
+
+function atacante(){ return state.atacante; }
+function defensor(){ return 1-state.atacante; }
+function loc(){ return state.currentLocation ? LOCATIONS[state.currentLocation] : null; }
+function phaseName(){
+  return {local:'Escolha do Local', build:'Preparacao', precombat:'Acao previa', military:'Combate Militar', influence:'Conflito de Influencia', end:'Fim'}[state.fase];
+}
+
+function log(msg){ state.log.unshift(msg); state.log = state.log.slice(0,140); }
+
+function custoCarta(pi,id){
+  let c = CARDS[id].custo;
+  const p = state.players[pi];
+  if(!p.firstCardPlayed && (p.mythic==='odin' || state.currentLocation==='delfos')) c -= 1;
+  return Math.max(0,c);
+}
+
+function canPlay(pi,id){ return state.players[pi].mana >= custoCarta(pi,id) && ['build','precombat'].includes(state.fase); }
+
+function playCard(pi, handIndex, zone){
+  const p = state.players[pi];
+  const id = p.mao[handIndex], card = CARDS[id];
+  if(!card || !canPlay(pi,id)) return;
+  p.mana -= custoCarta(pi,id);
+  p.firstCardPlayed = true;
+  p.mao.splice(handIndex,1);
+  if(card.tipo==='unit'){
+    p.unidades.push({
+      uid:uidSeq++, id, nome:card.nome, baseM:card.m, baseI:card.i, tempM:0, tempI:0,
+      zone, exhausted:false, supportUsed:false, tags:card.tags||[]
+    });
+    log(p.nome+' colocou '+card.nome+' na Zona '+(zone==='military'?'Militar':'de Influencia')+'.');
+  }else{
+    resolveSpell(pi,id);
+    p.descarte.push(id);
+  }
+  checarVitoria();
+  render();
+}
+
+function resolveSpell(pi,id){
+  const p = state.players[pi], o = state.players[1-pi];
+  if(id==='pressagio'){ draw(p,2); log(p.nome+' usou Pressagio e comprou 2 cartas.'); }
+  if(id==='hino'){ p.devocao += 2; log(p.nome+' cantou Hino de Devocao e ganhou 2 devocao.'); }
+  if(id==='lanca'){ o.vida -= 3; log(p.nome+' arremessou Lanca Divina e causou 3 de dano.'); }
+  if(id==='escudo'){
+    const u = maiorUnidade(p);
+    if(u){ u.tempM += 1; u.tempI += 1; log(p.nome+' consagrou '+u.nome+' com +1/+1 neste turno.'); }
+    else log(p.nome+' usou Escudo Consagrado sem alvo.');
+  }
+}
+
+function maiorUnidade(p){
+  return p.unidades.slice().sort((a,b)=>(valorM(b)+valorI(b))-(valorM(a)+valorI(a)))[0];
+}
+
+function valorM(u){
+  let v = u.baseM + u.tempM;
+  const l = loc();
+  if(l && u.zone==='military' && state.currentLocation==='arena') v += 1;
+  if(l && u.zone==='military' && state.currentLocation==='porto' && u.tags.includes('navio')) v += 2;
+  return Math.max(0,v);
+}
+
+function valorI(u){
+  if(u.supportUsed) return 0;
+  let v = u.baseI + u.tempI;
+  if(loc() && u.zone==='influence' && state.currentLocation==='templo') v += 1;
+  return Math.max(0,v);
+}
+
+function pronta(u){ return !(state.exhaustion && u.exhausted); }
+
+function moverUnidade(pi, uid){
+  if(!['build','precombat'].includes(state.fase)) return;
+  const u = state.players[pi].unidades.find(x=>x.uid===uid);
+  if(!u || !pronta(u)) return;
+  u.zone = u.zone==='military' ? 'influence' : 'military';
+  log(state.players[pi].nome+' moveu '+u.nome+' para a Zona '+(u.zone==='military'?'Militar':'de Influencia')+'.');
+  render();
+}
+
+function apoiar(pi, uid){
+  if(!['precombat','military'].includes(state.fase)) return;
+  const p = state.players[pi];
+  const u = p.unidades.find(x=>x.uid===uid);
+  if(!u || !u.supportUsed && !u.tags.includes('oraculo')){}
+  if(!u || !u.tags.includes('oraculo') || u.zone!=='influence' || u.supportUsed || !pronta(u)) return;
+  const alvo = p.unidades.filter(x=>x.zone==='military' && pronta(x)).sort((a,b)=>valorM(b)-valorM(a))[0];
+  if(!alvo) return;
+  const boost = valorI(u);
+  alvo.tempM += boost;
+  u.supportUsed = true;
+  if(state.exhaustion) u.exhausted = true;
+  log(u.nome+' zerou Influencia para dar +'+boost+' Militar a '+alvo.nome+'.');
+  render();
+}
+
+function usarAtivo(pi){
+  const p = state.players[pi], o = state.players[1-pi], m = MYTHICS[p.mythic];
+  if(p.activeUsed || !['build','precombat','military','influence'].includes(state.fase)) return;
+  if(m.active==='ares'){
+    if(p.vida<=3) return;
+    const alvo = p.unidades.filter(u=>u.zone==='military' && pronta(u)).sort((a,b)=>valorM(b)-valorM(a))[0];
+    if(!alvo) return;
+    p.vida -= 3; alvo.tempM += 2; p.activeUsed = true;
+    log(p.nome+' invocou Ares: pagou 3 de vida e deu +2 Militar a '+alvo.nome+'.');
+  }
+  if(m.active==='athena'){
+    const alvo = p.unidades.filter(u=>u.zone==='influence' && pronta(u)).sort((a,b)=>valorI(b)-valorI(a))[0];
+    if(!alvo) return;
+    alvo.tempI += 2; p.activeUsed = true;
+    log(p.nome+' invocou Atena: '+alvo.nome+' ganhou +2 Influencia.');
+  }
+  if(m.active==='odin'){
+    draw(p,1); p.activeUsed = true;
+    log(p.nome+' invocou Odin e comprou 1 carta.');
+  }
+  if(m.active==='anubis'){
+    const alvo = p.unidades.slice().sort((a,b)=>(valorM(a)+valorI(a))-(valorM(b)+valorI(b)))[0];
+    if(!alvo) return;
+    matarUnidades(pi,[alvo.uid], 'sacrificio');
+    o.vida -= 2; p.activeUsed = true;
+    log(p.nome+' invocou Anubis: sacrificou uma unidade e causou 2 de dano.');
+  }
+  checarVitoria();
+  render();
+}
+
+function escolherLocal(id){
+  if(state.fase!=='local') return;
+  const d = state.players[defensor()];
+  d.locChoices = d.locChoices.filter(x=>x!==id);
+  refillLocChoices(d);
+  state.currentLocation = id;
+  state.fase = 'build';
+  log(d.nome+' revelou '+LOCATIONS[id].nome+' como Local Sagrado.');
+  render();
+}
+
+function proximaFase(){
+  if(state.fase==='build') state.fase='precombat';
+  else if(state.fase==='precombat') state.fase='military';
+  else if(state.fase==='military' && state.militaryResolved) state.fase='influence';
+  else if(state.fase==='influence' && state.influenceResolved) state.fase='end';
+  render();
+}
+
+function autoSelecionarMilitar(){
+  document.querySelectorAll('.mil-check').forEach(cb=>cb.checked=true);
+}
+
+function selectedUnits(pi, role){
+  return [...document.querySelectorAll('.mil-check[data-p="'+pi+'"][data-role="'+role+'"]:checked')]
+    .map(cb=>+cb.dataset.uid);
+}
+
+function resolverMilitar(){
+  if(state.fase!=='military') return;
+  const ai = atacante(), di = defensor();
+  const auids = selectedUnits(ai,'atk');
+  const duids = selectedUnits(di,'def');
+  const A = state.players[ai].unidades.filter(u=>auids.includes(u.uid) && u.zone==='military' && pronta(u));
+  const D = state.players[di].unidades.filter(u=>duids.includes(u.uid) && u.zone==='military' && pronta(u));
+  if(!A.length){ log('Sem atacantes militares. O combate militar foi ignorado.'); state.militaryResolved = true; render(); return; }
+
+  const aPower = A.reduce((s,u)=>s+valorM(u),0);
+  const dPower = D.reduce((s,u)=>s+valorM(u),0);
+  const margin = aPower - dPower;
+  log('Combate Militar: atacante '+aPower+' vs defensor '+dPower+'.');
+  if(state.exhaustion){ [...A,...D].forEach(u=>u.exhausted=true); }
+
+  if(state.combatModel==='armyOverflow') resolveArmyOverflow(A,D,margin);
+  if(state.combatModel==='paired') resolvePaired(A,D);
+  if(state.combatModel==='conquestCasualty') resolveConquestCasualty(A,D,margin);
+
+  if(margin>=5 && state.players[ai].mythic==='ares'){
+    state.extraMilitary = true;
+    log('Passiva de Ares ativada: margem militar de '+margin+'. Um combate militar extra esta disponivel.');
+  }
+  state.militaryResolved = true;
+  checarVitoria();
+  render();
+}
+
+function resolveArmyOverflow(A,D,margin){
+  const ai = atacante(), di = defensor();
+  if(margin>0){
+    matarUnidades(di,D.map(u=>u.uid),'combate');
+    state.players[di].vida -= margin;
+    log('Modelo 1: o defensor perdeu todas as defensoras e sofreu '+margin+' de dano.');
+  }else if(margin<0){
+    matarUnidades(ai,A.map(u=>u.uid),'combate');
+    log('Modelo 1: o ataque foi contido; todas as atacantes selecionadas morreram.');
+  }else log('Modelo 1: empate militar sem baixas.');
+}
+
+function resolvePaired(A,D){
+  const ai = atacante(), di = defensor();
+  const deadA = [], deadD = [];
+  let dano = 0;
+  A.forEach((a,idx)=>{
+    const d = D[idx];
+    if(!d){ dano += valorM(a); return; }
+    const am = valorM(a), dm = valorM(d);
+    if(am>dm) deadD.push(d.uid);
+    else if(dm>am) deadA.push(a.uid);
+    else { deadA.push(a.uid); deadD.push(d.uid); }
+  });
+  if(deadA.length) matarUnidades(ai,deadA,'combate');
+  if(deadD.length) matarUnidades(di,deadD,'combate');
+  state.players[di].vida -= dano;
+  log('Modelo 2: bloqueios pareados; '+dano+' de dano passou sem bloqueio.');
+}
+
+function resolveConquestCasualty(A,D,margin){
+  const ai = atacante(), di = defensor(), conquest = loc() ? loc().conquista : 1;
+  if(margin>0){
+    state.players[di].vida -= margin;
+    const victims = D.slice().sort((a,b)=>valorM(b)-valorM(a)).slice(0,conquest).map(u=>u.uid);
+    matarUnidades(di,victims,'combate');
+    log('Modelo 3: atacante venceu, causou '+margin+' de dano e escolheu '+victims.length+' baixa(s) pelo valor do Local.');
+  }else if(margin<0){
+    const victims = A.slice().sort((a,b)=>valorM(b)-valorM(a)).slice(0,conquest).map(u=>u.uid);
+    matarUnidades(ai,victims,'combate');
+    log('Modelo 3: defensor venceu e escolheu '+victims.length+' baixa(s) pelo valor do Local.');
+  }else log('Modelo 3: empate militar sem baixas.');
+}
+
+function matarUnidades(pi,uids,reason){
+  const p = state.players[pi];
+  for(const uid of uids){
+    const idx = p.unidades.findIndex(u=>u.uid===uid);
+    if(idx<0) continue;
+    const [u] = p.unidades.splice(idx,1);
+    p.descarte.push(u.id);
+    if(reason==='combate'){
+      const other = state.players[1-pi];
+      if(other.mythic==='anubis'){ other.devocao += 1; log('Passiva de Anubis: '+other.nome+' ganhou 1 devocao pela morte de '+u.nome+'.'); }
+    }
+  }
+}
+
+function combateExtra(){
+  state.extraMilitary = false;
+  state.militaryResolved = false;
+  log('Ares abriu um novo combate militar neste mesmo turno.');
+  render();
+}
+
+function resolverInfluencia(){
+  if(state.fase!=='influence') return;
+  const ai = atacante(), di = defensor();
+  const A = state.players[ai].unidades.filter(u=>u.zone==='influence' && pronta(u));
+  const D = state.players[di].unidades.filter(u=>u.zone==='influence' && pronta(u));
+  const aInf = A.reduce((s,u)=>s+valorI(u),0);
+  const dInf = D.reduce((s,u)=>s+valorI(u),0);
+  const winner = aInf>dInf ? ai : di;
+  const loser = 1-winner;
+  const l = loc();
+  const ganho = l ? l.conquista : 1;
+  state.players[winner].devocao += ganho;
+  log('Conflito de Influencia: atacante '+aInf+' vs defensor '+dInf+'. '+state.players[winner].nome+' dominou '+l.nome+' e ganhou '+ganho+' devocao.');
+  if(state.players[winner].mythic==='athena'){
+    state.players[winner].devocao += 1;
+    log('Passiva de Atena: +1 devocao adicional.');
+  }
+  aplicarVitoriaLocal(winner, loser);
+  if(state.exhaustion){ [...A,...D].forEach(u=>u.exhausted=true); }
+  state.influenceResolved = true;
+  checarVitoria();
+  render();
+}
+
+function aplicarVitoriaLocal(winner, loser){
+  const p = state.players[winner], o = state.players[loser], l = loc();
+  if(!l) return;
+  if(l.effect==='damage2'){ o.vida -= 2; log('Efeito de vitoria: '+p.nome+' causou 2 de dano.'); }
+  if(l.effect==='drawDev'){ draw(p,1); p.devocao += 1; log('Efeito de vitoria: '+p.nome+' comprou 1 e ganhou +1 devocao.'); }
+  if(l.effect==='draw2'){ draw(p,2); log('Efeito de vitoria: '+p.nome+' comprou 2 cartas.'); }
+  if(l.effect==='heal3'){ p.vida = Math.min(30,p.vida+3); log('Efeito de vitoria: '+p.nome+' curou 3 de vida.'); }
+  if(l.effect==='revive'){
+    const idx = p.descarte.findIndex(id=>CARDS[id] && CARDS[id].tipo==='unit');
+    if(idx>=0){ const [id]=p.descarte.splice(idx,1); p.mao.push(id); log('Efeito de vitoria: '+p.nome+' retornou uma unidade do descarte para a mao.'); }
+  }
+  if(l.effect==='dev2'){ p.devocao += 2; log('Efeito de vitoria: '+p.nome+' ganhou +2 devocao adicional.'); }
+}
+
+function encerrarTurno(){
+  state.turno += 1;
+  state.atacante = 1-state.atacante;
+  state.fase = 'local';
+  state.currentLocation = null;
+  state.militaryResolved = false;
+  state.influenceResolved = false;
+  state.extraMilitary = false;
+  for(const p of state.players){
+    p.manaMax = Math.min(10,p.manaMax+1);
+    p.mana = p.manaMax;
+    p.activeUsed = false;
+    p.firstCardPlayed = false;
+    p.unidades.forEach(u=>{ u.tempM=0; u.tempI=0; u.supportUsed=false; u.exhausted=false; });
+    draw(p,1);
+  }
+  log('Novo turno. '+state.players[atacante()].nome+' tem a ficha de ataque.');
+  render();
+}
+
+function checarVitoria(){
+  for(const p of state.players){
+    if(p.vida<=0) state.gameOver = p.nome+' perdeu toda a vida.';
+    if(p.devocao>=15) state.gameOver = p.nome+' atingiu 15 devocao.';
+  }
+}
+
+function resetar(){ state=null; render(); }
+
+function render(){
+  if(!state){ renderSetup(); return; }
+  const app = $('#app');
+  const a = state.players[atacante()], d = state.players[defensor()];
+  app.innerHTML =
+    '<div class="topbar">'+
+      '<div class="brand">AGE OF GUTHOLOGY</div>'+
+      '<span class="pill">Turno <b>'+state.turno+'</b></span>'+
+      '<span class="pill">Fase <b>'+phaseName()+'</b></span>'+
+      '<span class="pill">Ataque <b>'+a.nome+'</b></span>'+
+      '<span class="pill">Defende <b>'+d.nome+'</b></span>'+
+      '<span class="pill">Modelo <b>'+modeloNome(state.combatModel)+'</b></span>'+
+      '<span class="pill">Exaustao <b>'+(state.exhaustion?'sim':'nao')+'</b></span>'+
+      '<div class="grow"></div><button onclick="resetar()">Novo teste</button>'+
+    '</div>'+
+    '<div class="battlefield">'+
+      '<div class="side">'+renderPlayer(1)+renderPlayer(0)+'</div>'+
+      '<div class="center">'+renderCenter()+'</div>'+
+      '<div class="logbox"><h3>Log de regras</h3><div class="log">'+state.log.map(x=>'<div>'+x+'</div>').join('')+'</div></div>'+
+    '</div>'+
+    (state.gameOver?'<div class="winner"><div class="winner-card"><h2>Fim do teste</h2><p>'+state.gameOver+'</p><button onclick="resetar()">Comecar outro teste</button></div></div>':'');
+}
+
+function renderSetup(){
+  $('#app').innerHTML =
+    '<div class="setup">'+
+      '<h1>Age of Guthology</h1>'+
+      '<p>Protótipo de regras: dano direto, devoção, Locais Sagrados, combate Militar e combate de Influência.</p>'+
+      '<div class="setup-grid">'+
+        '<div class="setup-card"><h2>Jogadores</h2>'+
+          mythSelect('Jogador 1','p1Mythic','ares')+
+          mythSelect('Jogador 2','p2Mythic','athena')+
+          '<label>Modelo de combate militar<br><select id="combatModel">'+
+            '<option value="conquestCasualty">3 - Baixas pelo valor do Local</option>'+
+            '<option value="armyOverflow">1 - Exército com dano excedente</option>'+
+            '<option value="paired">2 - Bloqueios pareados</option>'+
+          '</select></label><br><br>'+
+          '<label>Usar exaustão/tap?<br><select id="exhaustion"><option value="nao">Não, zonas já resolvem o compromisso</option><option value="sim">Sim, unidades usadas ficam exaustas</option></select></label>'+
+          '<div class="phase-controls"><button onclick="iniciarJogo()">Iniciar protótipo</button></div>'+
+        '</div>'+
+        '<div class="rules-card"><h2>O que este HTML testa</h2><ul>'+
+          '<li>Defensor escolhe e revela 1 Local Sagrado no começo do turno.</li>'+
+          '<li>Unidades entram em Zona Militar ou Zona de Influência.</li>'+
+          '<li>Militar pode causar dano e baixas; Influência conquista o Local.</li>'+
+          '<li>Vence por reduzir o oponente a 0 de vida ou chegar a 15 devoção.</li>'+
+          '<li>Oráculos testam a ideia: zerar Influência para buffar Militar.</li>'+
+        '</ul><div class="small-note">Não é balance final. É uma bancada para sentir o fluxo.</div></div>'+
+      '</div>'+
+    '</div>';
+}
+
+function mythSelect(label,id,chosen){
+  return `<div class="myth-row">
+    <div class="myth-portrait" id="${id}Img" style="background-image:url(${MYTHICS[chosen].img})"></div>
+    <label>${label}<br><select id="${id}" onchange="atualizarRetratoSetup('${id}')">
+      ${Object.entries(MYTHICS).map(([k,m])=>`<option value="${k}" ${k===chosen?'selected':''}>${m.nome}</option>`).join('')}
+    </select></label>
+  </div>`;
+}
+
+function atualizarRetratoSetup(id){
+  const sel = document.getElementById(id);
+  const img = document.getElementById(id+'Img');
+  if(sel && img) img.style.backgroundImage = 'url('+MYTHICS[sel.value].img+')';
+}
+
+function modeloNome(m){
+  if(m==='armyOverflow') return '1 excedente';
+  if(m==='paired') return '2 pareado';
+  return '3 conquista';
+}
+
+function renderPlayer(pi){
+  const p = state.players[pi], m = MYTHICS[p.mythic], role = pi===atacante()?'attacker':'defender';
+  return '<section class="player '+role+'">'+
+    '<div class="player-head"><div class="avatar" style="background-image:url('+m.img+')"></div><div>'+
+      '<div class="pname">'+p.nome+'</div><div class="stats">'+
+      '<span class="stat life">Vida '+p.vida+'/30</span><span class="stat dev">Devocao '+p.devocao+'/15</span><span class="stat mana">Mana '+p.mana+'/'+p.manaMax+'</span>'+
+      '<span class="stat">Deck '+p.deck.length+'</span></div></div></div>'+
+    '<div class="commander"><b>'+m.nome+'</b><br>Passiva: '+m.passiva+'<br>Ativo: '+m.ativo+
+      '<div class="phase-controls"><button onclick="usarAtivo('+pi+')" '+(p.activeUsed?'disabled':'')+'>Usar ativo</button></div></div>'+
+    '<div class="hand"><div class="hand-title"><b>Mao</b><span>'+p.mao.length+' cartas</span></div><div class="cards">'+
+      p.mao.map((id,idx)=>renderHandCard(pi,id,idx)).join('')+
+    '</div></div></section>';
+}
+
+function renderHandCard(pi,id,idx){
+  const c = CARDS[id], cost = custoCarta(pi,id), playable = canPlay(pi,id);
+  const cls = c.tipo==='unit'?'unit':'spell';
+  const disabled = !playable ? 'disabled' : '';
+  let actions = '';
+  if(c.tipo==='unit'){
+    actions = `<button onclick="playCard(${pi},${idx},'military')" ${disabled}>Baixar Militar</button>
+      <button onclick="playCard(${pi},${idx},'influence')" ${disabled}>Baixar Influencia</button>`;
+  }else{
+    actions = `<button onclick="playCard(${pi},${idx},'spell')" ${disabled}>Usar magia</button>`;
+  }
+  return `<div class="card ${cls}">
+    <div class="cost">${cost}</div>
+    <div class="type">${c.tipo==='unit'?'Unidade':'Ação'}</div>
+    <h4>${c.nome}</h4>
+    ${c.tipo==='unit'?`<div class="mi"><span class="m">M ${c.m}</span><span class="i">I ${c.i}</span></div>`:''}
+    <div class="mini">${c.texto}</div>
+    <div class="card-actions">${actions}</div>
+  </div>`;
+}
+
+function renderCenter(){
+  return '<div class="local-wrap">'+renderLocalPanel()+renderPhasePanel()+'</div>'+
+    '<div class="zones">'+renderZone(1,'military')+renderZone(1,'influence')+renderZone(0,'military')+renderZone(0,'influence')+'</div>';
+}
+
+function renderLocalPanel(){
+  if(state.fase==='local'){
+    const d = state.players[defensor()];
+    return '<div class="local-panel"><h3>'+d.nome+' escolhe o Local Sagrado</h3><div class="location-choice">'+
+      d.locChoices.map(id=>renderLocationChoice(id)).join('')+
+      '</div></div>';
+  }
+  const l = loc();
+  return '<div class="local-panel"><h3>Local Sagrado</h3><div class="local-art">'+l.icon+'</div>'+
+    '<h3>'+l.nome+'</h3><div class="mi"><span class="i">Conquista '+l.conquista+'</span></div>'+
+    '<div class="mini"><b>Passivo:</b> '+l.passiva+'<br><b>Vitória:</b> '+l.vitoria+'</div></div>';
+}
+
+function renderLocationChoice(id){
+  const l = LOCATIONS[id];
+  return `<div class="card location">
+    <div class="cost">${l.conquista}</div>
+    <div class="type">Local Sagrado</div>
+    <h4>${l.nome}</h4>
+    <div class="local-art" style="height:64px;font-size:32px">${l.icon}</div>
+    <div class="mini">${l.passiva}<br><br><b>Vitória:</b> ${l.vitoria}</div>
+    <div class="card-actions"><button onclick="escolherLocal('${id}')">Defender este local</button></div>
+  </div>`;
+}
+
+function renderPhasePanel(){
+  let controls = '';
+  if(state.fase==='build') controls = '<button onclick="proximaFase()">Ir para ações pré-combate</button>';
+  if(state.fase==='precombat') controls = '<button onclick="proximaFase()">Declarar combate militar</button>';
+  if(state.fase==='military'){
+    controls = '<button onclick="autoSelecionarMilitar()">Selecionar todos</button><button onclick="resolverMilitar()" '+(state.militaryResolved?'disabled':'')+'>Resolver militar</button>';
+    if(state.extraMilitary && state.militaryResolved) controls += '<button onclick="combateExtra()">Combate militar extra</button>';
+    if(state.militaryResolved && !state.extraMilitary) controls += '<button onclick="proximaFase()">Ir para influência</button>';
+  }
+  if(state.fase==='influence') controls = '<button onclick="resolverInfluencia()" '+(state.influenceResolved?'disabled':'')+'>Resolver influência</button>'+(state.influenceResolved?'<button onclick="proximaFase()">Fim do turno</button>':'');
+  if(state.fase==='end') controls = '<button onclick="encerrarTurno()">Encerrar turno</button>';
+  return '<div class="phase-panel"><h3>'+phaseName()+'</h3>'+
+    '<div class="mini">'+textoFase()+'</div><div class="phase-controls">'+controls+'</div></div>';
+}
+
+function textoFase(){
+  if(state.fase==='local') return 'O defensor revela qual Local Sagrado será disputado.';
+  if(state.fase==='build') return 'Ambos podem baixar unidades nas duas zonas e usar ações.';
+  if(state.fase==='precombat') return 'Espaço para ativos, magias e apoio dos Oráculos antes do combate.';
+  if(state.fase==='military') return 'Marque atacantes e defensores na Zona Militar, depois resolva pelo modelo escolhido.';
+  if(state.fase==='influence') return 'Todas as unidades prontas na Zona de Influência somam poder pelo Local Sagrado. Empate protege o defensor.';
+  return 'Limpe buffs, compre cartas e passe a ficha de ataque.';
+}
+
+function renderZone(pi,zone){
+  const p = state.players[pi], title = (pi===0?'J1':'J2')+' - '+(zone==='military'?'Zona Militar':'Zona de Influencia');
+  const units = p.unidades.filter(u=>u.zone===zone);
+  return '<div class="zone '+(zone==='military'?'military':'influence')+'"><h3>'+title+'</h3>'+
+    (units.map(u=>renderUnit(pi,u)).join('') || '<div class="mini">Sem unidades aqui.</div>')+'</div>';
+}
+
+function renderUnit(pi,u){
+  const isMil = u.zone==='military', role = pi===atacante()?'atk':'def';
+  const canCheck = state.fase==='military' && isMil && !state.militaryResolved && pronta(u);
+  const check = canCheck ? '<input class="mil-check" type="checkbox" data-p="'+pi+'" data-role="'+role+'" data-uid="'+u.uid+'">' : '<span></span>';
+  let btns = '';
+  if(['build','precombat'].includes(state.fase)) btns += '<button onclick="moverUnidade('+pi+','+u.uid+')">Mover zona</button>';
+  if(u.tags.includes('oraculo') && u.zone==='influence' && !u.supportUsed && ['precombat','military'].includes(state.fase)) btns += '<button onclick="apoiar('+pi+','+u.uid+')">Apoiar militar +'+valorI(u)+'</button>';
+  return '<div class="unit-row '+(!pronta(u)?'exhausted':'')+'">'+check+'<div><div class="name">'+u.nome+'</div><div class="tags">'+(u.tags.join(', ')||'sem tag')+(u.supportUsed?' · apoio usado':'')+'</div></div>'+
+    '<div class="unit-pow"><span class="m">M '+valorM(u)+'</span><span class="i">I '+valorI(u)+'</span></div>'+
+    (btns?'<div class="unit-buttons">'+btns+'</div>':'')+'</div>';
+}
+
+render();
+</script>
+</body>
+</html>
