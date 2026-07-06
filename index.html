@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Age of Guthology - Protótipo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <style>
 :root{
   --bg:#080b12; --panel:#101722; --panel2:#151e2b; --line:#304155;
@@ -19,14 +20,15 @@ body{
     radial-gradient(circle at 0 30%,rgba(91,76,164,.18),transparent 32%),
     linear-gradient(180deg,#05070d,#0a0f18 45%,#05070d);
 }
-button,select{font:inherit}
+button,select,input{font:inherit}
 button{
   border:1px solid #466078; background:#101b2a; color:#f6efe0; border-radius:8px;
   padding:8px 10px; cursor:pointer; font-weight:700;
 }
 button:hover{border-color:var(--gold); color:#fff}
 button:disabled{opacity:.45; cursor:not-allowed}
-select{background:#08111d; color:var(--text); border:1px solid var(--line); border-radius:7px; padding:8px}
+select,input{background:#08111d; color:var(--text); border:1px solid var(--line); border-radius:7px; padding:8px}
+input{width:100%; min-width:0}
 .app{min-height:100vh; display:flex; flex-direction:column}
 .topbar{
   position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
@@ -52,6 +54,11 @@ select{background:#08111d; color:var(--text); border:1px solid var(--line); bord
   box-shadow:inset 0 0 22px rgba(0,0,0,.55);
 }
 .rules-card ul{margin:8px 0 0; padding-left:20px; color:#cdd8e5; line-height:1.45}
+.online-row{display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; margin-top:10px}
+#statusLobby{margin-top:12px; color:#cbd8e5; min-height:22px; line-height:1.35}
+#statusLobby .codigo{display:block; margin:6px 0; color:var(--gold); font-size:30px; letter-spacing:8px; font-weight:900}
+.nettag{color:#9fd2ff}
+.private-note{padding:10px; border:1px dashed #40546a; border-radius:8px; color:var(--muted); background:#08111d}
 .battlefield{display:grid; grid-template-columns:290px minmax(0,1fr) 330px; gap:12px; padding:12px; flex:1}
 .side,.center,.logbox{min-width:0}
 .player{
@@ -206,6 +213,25 @@ const LOCATION_IDS = Object.keys(LOCATIONS);
 
 let state = null;
 let uidSeq = 1;
+let mode = 'local';
+let myIndex = null;
+let peer = null;
+let conn = null;
+let conns = [];
+let lobbyStatus = '';
+let roomCode = '';
+
+function online(){ return mode==='host' || mode==='guest'; }
+function canActPlayer(pi){ return mode==='local' || pi===myIndex; }
+function canSeePrivate(pi){ return mode==='local' || pi===myIndex || (state && state.gameOver); }
+function canChooseLocal(){ return state && (mode==='local' || myIndex===defensor()); }
+function canAdvance(){ return state && (mode==='local' || myIndex===atacante()); }
+function ensureSelections(){
+  if(!state) return;
+  if(!state.milSelect) state.milSelect = {0:[], 1:[]};
+  if(!Array.isArray(state.milSelect[0])) state.milSelect[0] = [];
+  if(!Array.isArray(state.milSelect[1])) state.milSelect[1] = [];
+}
 
 function shuffle(a){
   for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
@@ -237,17 +263,28 @@ function refillLocChoices(p){
   if(!p.locDeck.length && p.locChoices.length<3) p.locDeck = shuffle(LOCATION_IDS.slice());
 }
 
-function iniciarJogo(){
+function criarEstado(mythic1, mythic2, config={}){
   uidSeq = 1;
-  const p1 = novoPlayer('Jogador 1', $('#p1Mythic').value);
-  const p2 = novoPlayer('Jogador 2', $('#p2Mythic').value);
-  state = {
-    turno:1, atacante:0, fase:'local', currentLocation:null, combatModel:$('#combatModel').value,
-    exhaustion:$('#exhaustion').value==='sim', log:[], gameOver:null, militaryResolved:false,
-    influenceResolved:false, extraMilitary:false
+  const p1 = novoPlayer(config.nome1 || 'Jogador 1', mythic1);
+  const p2 = novoPlayer(config.nome2 || 'Jogador 2', mythic2);
+  const novo = {
+    turno:1, atacante:0, fase:'local', currentLocation:null, combatModel:config.combatModel || 'conquestCasualty',
+    exhaustion:!!config.exhaustion, log:[], gameOver:null, militaryResolved:false,
+    influenceResolved:false, extraMilitary:false, milSelect:{0:[],1:[]}
   };
-  state.players = [p1,p2];
-  for(const p of state.players){ draw(p,5); p.manaMax=3; p.mana=3; }
+  novo.players = [p1,p2];
+  for(const p of novo.players){ draw(p,5); p.manaMax=3; p.mana=3; }
+  return novo;
+}
+
+function iniciarJogo(){
+  fecharRede();
+  mode = 'local';
+  myIndex = null;
+  state = criarEstado($('#p1Mythic').value, $('#p2Mythic').value, {
+    combatModel:$('#combatModel').value,
+    exhaustion:$('#exhaustion').value==='sim'
+  });
   log('Partida iniciada. O defensor escolhe um Local Sagrado.');
   render();
 }
@@ -271,6 +308,7 @@ function custoCarta(pi,id){
 function canPlay(pi,id){ return state.players[pi].mana >= custoCarta(pi,id) && ['build','precombat'].includes(state.fase); }
 
 function playCard(pi, handIndex, zone){
+  if(!canActPlayer(pi)) return;
   const p = state.players[pi];
   const id = p.mao[handIndex], card = CARDS[id];
   if(!card || !canPlay(pi,id)) return;
@@ -288,7 +326,7 @@ function playCard(pi, handIndex, zone){
     p.descarte.push(id);
   }
   checarVitoria();
-  render();
+  sincronizar();
 }
 
 function resolveSpell(pi,id){
@@ -325,15 +363,17 @@ function valorI(u){
 function pronta(u){ return !(state.exhaustion && u.exhausted); }
 
 function moverUnidade(pi, uid){
+  if(!canActPlayer(pi)) return;
   if(!['build','precombat'].includes(state.fase)) return;
   const u = state.players[pi].unidades.find(x=>x.uid===uid);
   if(!u || !pronta(u)) return;
   u.zone = u.zone==='military' ? 'influence' : 'military';
   log(state.players[pi].nome+' moveu '+u.nome+' para a Zona '+(u.zone==='military'?'Militar':'de Influencia')+'.');
-  render();
+  sincronizar();
 }
 
 function apoiar(pi, uid){
+  if(!canActPlayer(pi)) return;
   if(!['precombat','military'].includes(state.fase)) return;
   const p = state.players[pi];
   const u = p.unidades.find(x=>x.uid===uid);
@@ -346,10 +386,11 @@ function apoiar(pi, uid){
   u.supportUsed = true;
   if(state.exhaustion) u.exhausted = true;
   log(u.nome+' zerou Influencia para dar +'+boost+' Militar a '+alvo.nome+'.');
-  render();
+  sincronizar();
 }
 
 function usarAtivo(pi){
+  if(!canActPlayer(pi)) return;
   const p = state.players[pi], o = state.players[1-pi], m = MYTHICS[p.mythic];
   if(p.activeUsed || !['build','precombat','military','influence'].includes(state.fase)) return;
   if(m.active==='ares'){
@@ -377,10 +418,11 @@ function usarAtivo(pi){
     log(p.nome+' invocou Anubis: sacrificou uma unidade e causou 2 de dano.');
   }
   checarVitoria();
-  render();
+  sincronizar();
 }
 
 function escolherLocal(id){
+  if(!canChooseLocal()) return;
   if(state.fase!=='local') return;
   const d = state.players[defensor()];
   d.locChoices = d.locChoices.filter(x=>x!==id);
@@ -388,34 +430,53 @@ function escolherLocal(id){
   state.currentLocation = id;
   state.fase = 'build';
   log(d.nome+' revelou '+LOCATIONS[id].nome+' como Local Sagrado.');
-  render();
+  sincronizar();
 }
 
 function proximaFase(){
+  if(!canAdvance()) return;
   if(state.fase==='build') state.fase='precombat';
   else if(state.fase==='precombat') state.fase='military';
   else if(state.fase==='military' && state.militaryResolved) state.fase='influence';
   else if(state.fase==='influence' && state.influenceResolved) state.fase='end';
-  render();
+  sincronizar();
 }
 
 function autoSelecionarMilitar(){
-  document.querySelectorAll('.mil-check').forEach(cb=>cb.checked=true);
+  ensureSelections();
+  for(const pi of [0,1]){
+    if(mode!=='local' && pi!==myIndex) continue;
+    state.milSelect[pi] = state.players[pi].unidades
+      .filter(u=>u.zone==='military' && pronta(u))
+      .map(u=>u.uid);
+  }
+  sincronizar();
+}
+
+function toggleMilitar(pi, uid, checked){
+  if(!canActPlayer(pi) || state.fase!=='military' || state.militaryResolved) return;
+  ensureSelections();
+  const set = new Set(state.milSelect[pi]);
+  if(checked) set.add(uid);
+  else set.delete(uid);
+  state.milSelect[pi] = [...set];
+  sincronizar();
 }
 
 function selectedUnits(pi, role){
-  return [...document.querySelectorAll('.mil-check[data-p="'+pi+'"][data-role="'+role+'"]:checked')]
-    .map(cb=>+cb.dataset.uid);
+  ensureSelections();
+  return state.milSelect[pi] || [];
 }
 
 function resolverMilitar(){
+  if(!canAdvance()) return;
   if(state.fase!=='military') return;
   const ai = atacante(), di = defensor();
   const auids = selectedUnits(ai,'atk');
   const duids = selectedUnits(di,'def');
   const A = state.players[ai].unidades.filter(u=>auids.includes(u.uid) && u.zone==='military' && pronta(u));
   const D = state.players[di].unidades.filter(u=>duids.includes(u.uid) && u.zone==='military' && pronta(u));
-  if(!A.length){ log('Sem atacantes militares. O combate militar foi ignorado.'); state.militaryResolved = true; render(); return; }
+  if(!A.length){ log('Sem atacantes militares. O combate militar foi ignorado.'); state.militaryResolved = true; state.milSelect = {0:[],1:[]}; sincronizar(); return; }
 
   const aPower = A.reduce((s,u)=>s+valorM(u),0);
   const dPower = D.reduce((s,u)=>s+valorM(u),0);
@@ -432,8 +493,9 @@ function resolverMilitar(){
     log('Passiva de Ares ativada: margem militar de '+margin+'. Um combate militar extra esta disponivel.');
   }
   state.militaryResolved = true;
+  state.milSelect = {0:[],1:[]};
   checarVitoria();
-  render();
+  sincronizar();
 }
 
 function resolveArmyOverflow(A,D,margin){
@@ -495,13 +557,16 @@ function matarUnidades(pi,uids,reason){
 }
 
 function combateExtra(){
+  if(!canAdvance()) return;
   state.extraMilitary = false;
   state.militaryResolved = false;
+  state.milSelect = {0:[],1:[]};
   log('Ares abriu um novo combate militar neste mesmo turno.');
-  render();
+  sincronizar();
 }
 
 function resolverInfluencia(){
+  if(!canAdvance()) return;
   if(state.fase!=='influence') return;
   const ai = atacante(), di = defensor();
   const A = state.players[ai].unidades.filter(u=>u.zone==='influence' && pronta(u));
@@ -522,7 +587,7 @@ function resolverInfluencia(){
   if(state.exhaustion){ [...A,...D].forEach(u=>u.exhausted=true); }
   state.influenceResolved = true;
   checarVitoria();
-  render();
+  sincronizar();
 }
 
 function aplicarVitoriaLocal(winner, loser){
@@ -540,6 +605,7 @@ function aplicarVitoriaLocal(winner, loser){
 }
 
 function encerrarTurno(){
+  if(!canAdvance()) return;
   state.turno += 1;
   state.atacante = 1-state.atacante;
   state.fase = 'local';
@@ -547,6 +613,7 @@ function encerrarTurno(){
   state.militaryResolved = false;
   state.influenceResolved = false;
   state.extraMilitary = false;
+  state.milSelect = {0:[],1:[]};
   for(const p of state.players){
     p.manaMax = Math.min(10,p.manaMax+1);
     p.mana = p.manaMax;
@@ -556,7 +623,7 @@ function encerrarTurno(){
     draw(p,1);
   }
   log('Novo turno. '+state.players[atacante()].nome+' tem a ficha de ataque.');
-  render();
+  sincronizar();
 }
 
 function checarVitoria(){
@@ -566,12 +633,163 @@ function checarVitoria(){
   }
 }
 
-function resetar(){ state=null; render(); }
+function gerarCodigo(){
+  const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for(let i=0;i<5;i++) s += letras[Math.floor(Math.random()*letras.length)];
+  return s;
+}
+
+function statusLobby(html){
+  lobbyStatus = html;
+  const el = $('#statusLobby');
+  if(el) el.innerHTML = html;
+}
+
+function temPeerJS(){
+  if(typeof Peer==='undefined'){
+    statusLobby('Não foi possível carregar o modo online. Confira a internet e tente de novo.');
+    return false;
+  }
+  return true;
+}
+
+function fecharRede(){
+  try{ if(conn) conn.close(); }catch(e){}
+  try{ for(const c of conns) c.close(); }catch(e){}
+  try{ if(peer) peer.destroy(); }catch(e){}
+  peer = null;
+  conn = null;
+  conns = [];
+}
+
+function enviarRede(msg, exceto=null){
+  if(mode==='host'){
+    for(const c of conns) if(c!==exceto && c.open) c.send(msg);
+  }else if(mode==='guest' && conn && conn.open){
+    conn.send(msg);
+  }
+}
+
+function sincronizar(exceto=null){
+  if(state) ensureSelections();
+  if(mode==='host') enviarRede({t:'state', state}, exceto);
+  else if(mode==='guest') enviarRede({t:'state', state});
+  render();
+}
+
+function criarSala(){
+  if(!temPeerJS()) return;
+  fecharRede();
+  roomCode = gerarCodigo();
+  statusLobby('Criando sala...');
+  peer = new Peer('ageguthology-'+roomCode, {debug:0});
+  peer.on('open', ()=>{
+    mode = 'host';
+    myIndex = 0;
+    statusLobby('Sala criada. Envie este código:<span class="codigo">'+roomCode+'</span>Aguardando Jogador 2...');
+  });
+  peer.on('connection', c=>{
+    if(state || conns.length>=1){ c.on('open', ()=>c.close()); return; }
+    conns = [c];
+    c.on('data', msg=>receberDoConvidado(c,msg));
+    c.on('close', ()=>desconectado('Jogador 2 desconectou.'));
+    statusLobby('Jogador 2 conectando...');
+  });
+  peer.on('error', e=>statusLobby('Erro ao criar sala: '+e.type+'. Tente outro código.'));
+}
+
+function receberDoConvidado(c,msg){
+  if(!msg || typeof msg!=='object') return;
+  if(msg.t==='hello' && !state){
+    const config = {
+      combatModel:$('#combatModel').value,
+      exhaustion:$('#exhaustion').value==='sim',
+      nome1:'Jogador 1',
+      nome2:'Jogador 2'
+    };
+    state = criarEstado($('#p1Mythic').value, msg.mythic || 'athena', config);
+    log('Partida online iniciada. Jogador 1 criou a sala e Jogador 2 entrou pelo código.');
+    c.send({t:'init', state, index:1});
+    render();
+    statusLobby('');
+  }else if(msg.t==='state' && state){
+    state = msg.state;
+    ensureSelections();
+    sincronizar(c);
+  }else if(msg.t==='reset'){
+    resetar(false);
+  }
+}
+
+function entrarSala(){
+  if(!temPeerJS()) return;
+  fecharRede();
+  const codigo = ($('#inpCodigo').value || '').trim().toUpperCase();
+  if(codigo.length!==5){ statusLobby('Digite o código de 5 caracteres que seu amigo enviou.'); return; }
+  statusLobby('Conectando...');
+  peer = new Peer({debug:0});
+  peer.on('open', ()=>{
+    conn = peer.connect('ageguthology-'+codigo, {reliable:true});
+    conn.on('open', ()=>{
+      mode = 'guest';
+      myIndex = 1;
+      conn.send({t:'hello', mythic:$('#p2Mythic').value});
+      statusLobby('Conectado. Aguardando o host iniciar a partida...');
+    });
+    conn.on('data', receberDoHost);
+    conn.on('close', ()=>desconectado('Conexão perdida com o host.'));
+  });
+  peer.on('error', e=>{
+    if(e.type==='peer-unavailable') statusLobby('Sala não encontrada. Confira o código.');
+    else statusLobby('Erro de conexão: '+e.type+'.');
+  });
+}
+
+function receberDoHost(msg){
+  if(!msg || typeof msg!=='object') return;
+  if(msg.t==='init'){
+    state = msg.state;
+    myIndex = msg.index;
+    mode = 'guest';
+    ensureSelections();
+    render();
+  }else if(msg.t==='state'){
+    state = msg.state;
+    ensureSelections();
+    render();
+  }else if(msg.t==='reset'){
+    resetar(false);
+  }
+}
+
+function desconectado(msg){
+  if(!state){
+    statusLobby(msg);
+    return;
+  }
+  log(msg+' Continue localmente ou comece uma nova sala.');
+  mode='local';
+  myIndex=null;
+  render();
+}
+
+function resetar(notify=true){
+  if(notify && online()) enviarRede({t:'reset'});
+  fecharRede();
+  state=null;
+  mode='local';
+  myIndex=null;
+  lobbyStatus='';
+  roomCode='';
+  render();
+}
 
 function render(){
   if(!state){ renderSetup(); return; }
   const app = $('#app');
   const a = state.players[atacante()], d = state.players[defensor()];
+  const net = mode==='local' ? 'Local' : (mode==='host' ? 'Online J1' : 'Online J2');
   app.innerHTML =
     '<div class="topbar">'+
       '<div class="brand">AGE OF GUTHOLOGY</div>'+
@@ -581,6 +799,7 @@ function render(){
       '<span class="pill">Defende <b>'+d.nome+'</b></span>'+
       '<span class="pill">Modelo <b>'+modeloNome(state.combatModel)+'</b></span>'+
       '<span class="pill">Exaustao <b>'+(state.exhaustion?'sim':'nao')+'</b></span>'+
+      '<span class="pill nettag"><b>'+net+'</b></span>'+
       '<div class="grow"></div><button onclick="resetar()">Novo teste</button>'+
     '</div>'+
     '<div class="battlefield">'+
@@ -607,6 +826,12 @@ function renderSetup(){
           '</select></label><br><br>'+
           '<label>Usar exaustão/tap?<br><select id="exhaustion"><option value="nao">Não, zonas já resolvem o compromisso</option><option value="sim">Sim, unidades usadas ficam exaustas</option></select></label>'+
           '<div class="phase-controls"><button onclick="iniciarJogo()">Iniciar protótipo</button></div>'+
+        '</div>'+
+        '<div class="setup-card"><h2>Online por código</h2>'+
+          '<p class="mini">Quem cria a sala joga como <b>Jogador 1</b>. Quem entra pelo código joga como <b>Jogador 2</b>. O host usa o modelo de combate e exaustão escolhidos acima.</p>'+
+          '<div class="phase-controls"><button onclick="criarSala()">Criar sala online</button></div>'+
+          '<div class="online-row"><input id="inpCodigo" maxlength="5" placeholder="CÓDIGO" oninput="this.value=this.value.toUpperCase()"><button onclick="entrarSala()">Entrar</button></div>'+
+          '<div id="statusLobby">'+lobbyStatus+'</div>'+
         '</div>'+
         '<div class="rules-card"><h2>O que este HTML testa</h2><ul>'+
           '<li>Defensor escolhe e revela 1 Local Sagrado no começo do turno.</li>'+
@@ -642,22 +867,26 @@ function modeloNome(m){
 
 function renderPlayer(pi){
   const p = state.players[pi], m = MYTHICS[p.mythic], role = pi===atacante()?'attacker':'defender';
+  const own = canActPlayer(pi);
+  const hand = canSeePrivate(pi)
+    ? p.mao.map((id,idx)=>renderHandCard(pi,id,idx)).join('')
+    : '<div class="private-note">Mão oculta no online<br><b>'+p.mao.length+'</b> cartas</div>';
   return '<section class="player '+role+'">'+
     '<div class="player-head"><div class="avatar" style="background-image:url('+m.img+')"></div><div>'+
       '<div class="pname">'+p.nome+'</div><div class="stats">'+
       '<span class="stat life">Vida '+p.vida+'/30</span><span class="stat dev">Devocao '+p.devocao+'/15</span><span class="stat mana">Mana '+p.mana+'/'+p.manaMax+'</span>'+
       '<span class="stat">Deck '+p.deck.length+'</span></div></div></div>'+
     '<div class="commander"><b>'+m.nome+'</b><br>Passiva: '+m.passiva+'<br>Ativo: '+m.ativo+
-      '<div class="phase-controls"><button onclick="usarAtivo('+pi+')" '+(p.activeUsed?'disabled':'')+'>Usar ativo</button></div></div>'+
+      '<div class="phase-controls"><button onclick="usarAtivo('+pi+')" '+(p.activeUsed || !own?'disabled':'')+'>Usar ativo</button></div></div>'+
     '<div class="hand"><div class="hand-title"><b>Mao</b><span>'+p.mao.length+' cartas</span></div><div class="cards">'+
-      p.mao.map((id,idx)=>renderHandCard(pi,id,idx)).join('')+
+      hand+
     '</div></div></section>';
 }
 
 function renderHandCard(pi,id,idx){
   const c = CARDS[id], cost = custoCarta(pi,id), playable = canPlay(pi,id);
   const cls = c.tipo==='unit'?'unit':'spell';
-  const disabled = !playable ? 'disabled' : '';
+  const disabled = (!playable || !canActPlayer(pi)) ? 'disabled' : '';
   let actions = '';
   if(c.tipo==='unit'){
     actions = `<button onclick="playCard(${pi},${idx},'military')" ${disabled}>Baixar Militar</button>
@@ -683,6 +912,9 @@ function renderCenter(){
 function renderLocalPanel(){
   if(state.fase==='local'){
     const d = state.players[defensor()];
+    if(!canChooseLocal()){
+      return '<div class="local-panel"><h3>'+d.nome+' escolhe o Local Sagrado</h3><div class="private-note">Aguardando o defensor revelar o local...</div></div>';
+    }
     return '<div class="local-panel"><h3>'+d.nome+' escolhe o Local Sagrado</h3><div class="location-choice">'+
       d.locChoices.map(id=>renderLocationChoice(id)).join('')+
       '</div></div>';
@@ -707,15 +939,16 @@ function renderLocationChoice(id){
 
 function renderPhasePanel(){
   let controls = '';
-  if(state.fase==='build') controls = '<button onclick="proximaFase()">Ir para ações pré-combate</button>';
-  if(state.fase==='precombat') controls = '<button onclick="proximaFase()">Declarar combate militar</button>';
+  const lock = canAdvance() ? '' : 'disabled';
+  if(state.fase==='build') controls = '<button onclick="proximaFase()" '+lock+'>Ir para ações pré-combate</button>';
+  if(state.fase==='precombat') controls = '<button onclick="proximaFase()" '+lock+'>Declarar combate militar</button>';
   if(state.fase==='military'){
-    controls = '<button onclick="autoSelecionarMilitar()">Selecionar todos</button><button onclick="resolverMilitar()" '+(state.militaryResolved?'disabled':'')+'>Resolver militar</button>';
-    if(state.extraMilitary && state.militaryResolved) controls += '<button onclick="combateExtra()">Combate militar extra</button>';
-    if(state.militaryResolved && !state.extraMilitary) controls += '<button onclick="proximaFase()">Ir para influência</button>';
+    controls = '<button onclick="autoSelecionarMilitar()">Selecionar meus militares</button><button onclick="resolverMilitar()" '+(state.militaryResolved || !canAdvance()?'disabled':'')+'>Resolver militar</button>';
+    if(state.extraMilitary && state.militaryResolved) controls += '<button onclick="combateExtra()" '+lock+'>Combate militar extra</button>';
+    if(state.militaryResolved && !state.extraMilitary) controls += '<button onclick="proximaFase()" '+lock+'>Ir para influência</button>';
   }
-  if(state.fase==='influence') controls = '<button onclick="resolverInfluencia()" '+(state.influenceResolved?'disabled':'')+'>Resolver influência</button>'+(state.influenceResolved?'<button onclick="proximaFase()">Fim do turno</button>':'');
-  if(state.fase==='end') controls = '<button onclick="encerrarTurno()">Encerrar turno</button>';
+  if(state.fase==='influence') controls = '<button onclick="resolverInfluencia()" '+(state.influenceResolved || !canAdvance()?'disabled':'')+'>Resolver influência</button>'+(state.influenceResolved?'<button onclick="proximaFase()" '+lock+'>Fim do turno</button>':'');
+  if(state.fase==='end') controls = '<button onclick="encerrarTurno()" '+lock+'>Encerrar turno</button>';
   return '<div class="phase-panel"><h3>'+phaseName()+'</h3>'+
     '<div class="mini">'+textoFase()+'</div><div class="phase-controls">'+controls+'</div></div>';
 }
@@ -738,11 +971,14 @@ function renderZone(pi,zone){
 
 function renderUnit(pi,u){
   const isMil = u.zone==='military', role = pi===atacante()?'atk':'def';
-  const canCheck = state.fase==='military' && isMil && !state.militaryResolved && pronta(u);
-  const check = canCheck ? '<input class="mil-check" type="checkbox" data-p="'+pi+'" data-role="'+role+'" data-uid="'+u.uid+'">' : '<span></span>';
+  ensureSelections();
+  const own = canActPlayer(pi);
+  const canCheck = state.fase==='military' && isMil && !state.militaryResolved && pronta(u) && own;
+  const checked = (state.milSelect[pi] || []).includes(u.uid) ? 'checked' : '';
+  const check = canCheck ? '<input class="mil-check" type="checkbox" '+checked+' data-p="'+pi+'" data-role="'+role+'" data-uid="'+u.uid+'" onchange="toggleMilitar('+pi+','+u.uid+',this.checked)">' : '<span></span>';
   let btns = '';
-  if(['build','precombat'].includes(state.fase)) btns += '<button onclick="moverUnidade('+pi+','+u.uid+')">Mover zona</button>';
-  if(u.tags.includes('oraculo') && u.zone==='influence' && !u.supportUsed && ['precombat','military'].includes(state.fase)) btns += '<button onclick="apoiar('+pi+','+u.uid+')">Apoiar militar +'+valorI(u)+'</button>';
+  if(['build','precombat'].includes(state.fase)) btns += '<button onclick="moverUnidade('+pi+','+u.uid+')" '+(!own?'disabled':'')+'>Mover zona</button>';
+  if(u.tags.includes('oraculo') && u.zone==='influence' && !u.supportUsed && ['precombat','military'].includes(state.fase)) btns += '<button onclick="apoiar('+pi+','+u.uid+')" '+(!own?'disabled':'')+'>Apoiar militar +'+valorI(u)+'</button>';
   return '<div class="unit-row '+(!pronta(u)?'exhausted':'')+'">'+check+'<div><div class="name">'+u.nome+'</div><div class="tags">'+(u.tags.join(', ')||'sem tag')+(u.supportUsed?' · apoio usado':'')+'</div></div>'+
     '<div class="unit-pow"><span class="m">M '+valorM(u)+'</span><span class="i">I '+valorI(u)+'</span></div>'+
     (btns?'<div class="unit-buttons">'+btns+'</div>':'')+'</div>';
