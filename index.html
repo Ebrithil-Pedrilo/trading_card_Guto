@@ -123,6 +123,8 @@ input{width:100%; min-width:0}
 .unit-pow span{padding:3px 5px; border-radius:5px}
 .unit-buttons{grid-column:2/4; display:flex; gap:5px; flex-wrap:wrap}
 .unit-buttons button{font-size:11px; padding:4px 6px}
+.block-select{grid-column:2/4; display:grid; gap:4px; font-size:11px; color:var(--muted)}
+.block-select select{padding:5px; font-size:12px}
 .logbox{border:1px solid var(--line); border-radius:10px; background:rgba(6,10,16,.88); padding:10px; display:flex; flex-direction:column; min-height:0}
 .logbox h3{margin:0 0 8px}
 .log{overflow:auto; flex:1; min-height:620px; max-height:calc(100vh - 120px); color:#cbd8e5; font-size:13px; line-height:1.35}
@@ -158,7 +160,7 @@ const MYTHICS = {
     active:'ares'
   },
   athena:{
-    nome:'Atena, Olhos da Estrategia', img:'rift-assets/cards/zeus-senhor-do-olimpo.webp',
+    nome:'Atena, Olhos da Estrategia', img:'rift-assets/cards/athena-olhos-da-estrategia.webp',
     passiva:'Quando vence o conflito de influencia, ganha +1 devocao adicional.',
     ativo:'Uma vez por turno: de +2 Influencia a uma unidade na Zona de Influencia.',
     active:'athena'
@@ -170,7 +172,7 @@ const MYTHICS = {
     active:'odin'
   },
   anubis:{
-    nome:'Anubis, Juiz dos Mortos', img:'rift-assets/cards/morgath-almirante-afogado.webp',
+    nome:'Anubis, Juiz dos Mortos', img:'rift-assets/cards/anubis-juiz-dos-mortos.webp',
     passiva:'Quando uma unidade inimiga morre em combate, ganhe 1 devocao.',
     ativo:'Uma vez por turno: sacrifique sua menor unidade para causar 2 de dano ao oponente.',
     active:'anubis'
@@ -192,13 +194,17 @@ const CARDS = {
   pressagio:{nome:'Pressagio', tipo:'spell', custo:1, texto:'Compre 2 cartas.'},
   hino:{nome:'Hino de Devocao', tipo:'spell', custo:2, texto:'Ganhe 2 devocao.'},
   lanca:{nome:'Lanca Divina', tipo:'spell', custo:2, texto:'Cause 3 de dano ao oponente.'},
-  escudo:{nome:'Escudo Consagrado', tipo:'spell', custo:1, texto:'Sua maior unidade ganha +1 Militar e +1 Influencia neste turno.'}
+  escudo:{nome:'Escudo Consagrado', tipo:'spell', custo:1, timing:'combat', texto:'Sua maior unidade ganha +1 Militar e +1 Influencia neste turno.'},
+  manobra:{nome:'Manobra Heroica', tipo:'spell', custo:1, timing:'combat', texto:'Durante combate: sua maior unidade Militar ganha +2 Militar.'},
+  nevoa:{nome:'Nevoa Sagrada', tipo:'spell', custo:2, timing:'combat', texto:'Durante combate: a maior unidade Militar inimiga recebe -2 Militar.'},
+  inspiracao:{nome:'Inspiracao Divina', tipo:'spell', custo:1, timing:'combat', texto:'Durante combate: sua maior unidade pronta ganha +1/+1.'}
 };
 
 const DECK_BASE = [
   'hoplita','hoplita','hoplita','guerreiro','guerreiro','oraculo','oraculo','sacerdotisa','sacerdotisa',
   'guarda','guarda','falange','falange','navio','musa','campeao','titanete',
-  'pressagio','pressagio','hino','hino','lanca','lanca','escudo','escudo'
+  'pressagio','pressagio','hino','hino','lanca','lanca','escudo','escudo',
+  'manobra','manobra','nevoa','inspiracao','inspiracao'
 ];
 
 const LOCATIONS = {
@@ -207,7 +213,7 @@ const LOCATIONS = {
   delfos:{nome:'Oraculo de Delfos', icon:'✦', conquista:3, passiva:'A primeira carta de cada jogador no turno custa 1 a menos.', vitoria:'O vencedor compra 2 cartas.', effect:'draw2'},
   porto:{nome:'Porto de Poseidon', icon:'≈', conquista:2, passiva:'Navios recebem +2 Militar.', vitoria:'O vencedor cura 3 de vida.', effect:'heal3'},
   necropole:{nome:'Necropole de Anubis', icon:'☥', conquista:1, passiva:'Combates militares tendem a gerar devocao para Anubis.', vitoria:'O vencedor retorna uma unidade do descarte para a mao.', effect:'revive'},
-  olimpo:{nome:'Monte Olimpo', icon:'▲', conquista:4, passiva:'Ativos de comandante definem o turno.', vitoria:'O vencedor ganha +2 devocao adicional.', effect:'dev2'}
+  olimpo:{nome:'Monte Olimpo', icon:'▲', conquista:4, passiva:'A primeira vez que cada jogador usa o ativo do seu deus neste turno, ganha +1 devocao.', vitoria:'O vencedor ganha +2 devocao adicional.', effect:'dev2'}
 };
 const LOCATION_IDS = Object.keys(LOCATIONS);
 
@@ -231,6 +237,7 @@ function ensureSelections(){
   if(!state.milSelect) state.milSelect = {0:[], 1:[]};
   if(!Array.isArray(state.milSelect[0])) state.milSelect[0] = [];
   if(!Array.isArray(state.milSelect[1])) state.milSelect[1] = [];
+  if(!state.blockAssign) state.blockAssign = {};
 }
 
 function shuffle(a){
@@ -270,7 +277,7 @@ function criarEstado(mythic1, mythic2, config={}){
   const novo = {
     turno:1, atacante:0, fase:'local', currentLocation:null, combatModel:config.combatModel || 'conquestCasualty',
     exhaustion:!!config.exhaustion, log:[], gameOver:null, militaryResolved:false,
-    influenceResolved:false, extraMilitary:false, milSelect:{0:[],1:[]}
+    influenceResolved:false, extraMilitary:false, aresExtraUsed:false, endReady:{0:false,1:false}, milSelect:{0:[],1:[]}, blockAssign:{}
   };
   novo.players = [p1,p2];
   for(const p of novo.players){ draw(p,5); p.manaMax=3; p.mana=3; }
@@ -305,7 +312,13 @@ function custoCarta(pi,id){
   return Math.max(0,c);
 }
 
-function canPlay(pi,id){ return state.players[pi].mana >= custoCarta(pi,id) && ['build','precombat'].includes(state.fase); }
+function canPlay(pi,id){
+  const c = CARDS[id];
+  if(!c || state.players[pi].mana < custoCarta(pi,id)) return false;
+  if(c.tipo==='unit') return ['build','precombat'].includes(state.fase);
+  if(c.timing==='combat') return ['precombat','military','influence'].includes(state.fase);
+  return ['build','precombat'].includes(state.fase);
+}
 
 function playCard(pi, handIndex, zone){
   if(!canActPlayer(pi)) return;
@@ -339,6 +352,21 @@ function resolveSpell(pi,id){
     if(u){ u.tempM += 1; u.tempI += 1; log(p.nome+' consagrou '+u.nome+' com +1/+1 neste turno.'); }
     else log(p.nome+' usou Escudo Consagrado sem alvo.');
   }
+  if(id==='manobra'){
+    const u = p.unidades.filter(x=>x.zone==='military' && pronta(x)).sort((a,b)=>valorM(b)-valorM(a))[0];
+    if(u){ u.tempM += 2; log(p.nome+' usou Manobra Heroica: '+u.nome+' ganhou +2 Militar.'); }
+    else log(p.nome+' usou Manobra Heroica sem unidade militar pronta.');
+  }
+  if(id==='nevoa'){
+    const u = o.unidades.filter(x=>x.zone==='military' && pronta(x)).sort((a,b)=>valorM(b)-valorM(a))[0];
+    if(u){ u.tempM -= 2; log(p.nome+' conjurou Nevoa Sagrada: '+u.nome+' recebeu -2 Militar.'); }
+    else log(p.nome+' conjurou Nevoa Sagrada sem alvo inimigo.');
+  }
+  if(id==='inspiracao'){
+    const u = p.unidades.filter(x=>pronta(x)).sort((a,b)=>(valorM(b)+valorI(b))-(valorM(a)+valorI(a)))[0];
+    if(u){ u.tempM += 1; u.tempI += 1; log(p.nome+' usou Inspiracao Divina: '+u.nome+' ganhou +1/+1.'); }
+    else log(p.nome+' usou Inspiracao Divina sem unidade pronta.');
+  }
 }
 
 function maiorUnidade(p){
@@ -368,6 +396,7 @@ function moverUnidade(pi, uid){
   const u = state.players[pi].unidades.find(x=>x.uid===uid);
   if(!u || !pronta(u)) return;
   u.zone = u.zone==='military' ? 'influence' : 'military';
+  removeMilitarySelection(pi, uid);
   log(state.players[pi].nome+' moveu '+u.nome+' para a Zona '+(u.zone==='military'?'Militar':'de Influencia')+'.');
   sincronizar();
 }
@@ -392,6 +421,7 @@ function apoiar(pi, uid){
 function usarAtivo(pi){
   if(!canActPlayer(pi)) return;
   const p = state.players[pi], o = state.players[1-pi], m = MYTHICS[p.mythic];
+  const jaUsou = p.activeUsed;
   if(p.activeUsed || !['build','precombat','military','influence'].includes(state.fase)) return;
   if(m.active==='ares'){
     if(p.vida<=3) return;
@@ -417,6 +447,10 @@ function usarAtivo(pi){
     o.vida -= 2; p.activeUsed = true;
     log(p.nome+' invocou Anubis: sacrificou uma unidade e causou 2 de dano.');
   }
+  if(!jaUsou && p.activeUsed && state.currentLocation==='olimpo'){
+    p.devocao += 1;
+    log('Monte Olimpo: '+p.nome+' ganhou +1 devocao por usar o ativo do deus.');
+  }
   checarVitoria();
   sincronizar();
 }
@@ -436,9 +470,16 @@ function escolherLocal(id){
 function proximaFase(){
   if(!canAdvance()) return;
   if(state.fase==='build') state.fase='precombat';
-  else if(state.fase==='precombat') state.fase='military';
+  else if(state.fase==='precombat'){
+    state.fase='military';
+    state.milSelect = {0:[],1:[]};
+    state.blockAssign = {};
+  }
   else if(state.fase==='military' && state.militaryResolved) state.fase='influence';
-  else if(state.fase==='influence' && state.influenceResolved) state.fase='end';
+  else if(state.fase==='influence' && state.influenceResolved){
+    state.fase='end';
+    state.endReady = {0:false,1:false};
+  }
   sincronizar();
 }
 
@@ -446,9 +487,21 @@ function autoSelecionarMilitar(){
   ensureSelections();
   for(const pi of [0,1]){
     if(mode!=='local' && pi!==myIndex) continue;
-    state.milSelect[pi] = state.players[pi].unidades
-      .filter(u=>u.zone==='military' && pronta(u))
-      .map(u=>u.uid);
+    const unidades = state.players[pi].unidades.filter(u=>u.zone==='military' && pronta(u));
+    if(state.combatModel==='paired' && pi===defensor()){
+      const attackers = state.milSelect[atacante()] || [];
+      if(attackers.length){
+        for(const [idx,u] of unidades.entries()) state.blockAssign[u.uid] = attackers[idx % attackers.length];
+        state.milSelect[pi] = unidades.map(u=>u.uid);
+      }
+    }else{
+      state.milSelect[pi] = unidades.map(u=>u.uid);
+      if(pi===atacante()){
+        for(const [blocker,target] of Object.entries(state.blockAssign)){
+          if(!state.milSelect[pi].includes(+target)) delete state.blockAssign[blocker];
+        }
+      }
+    }
   }
   sincronizar();
 }
@@ -458,7 +511,14 @@ function toggleMilitar(pi, uid, checked){
   ensureSelections();
   const set = new Set(state.milSelect[pi]);
   if(checked) set.add(uid);
-  else set.delete(uid);
+  else {
+    set.delete(uid);
+    if(pi===atacante()){
+      for(const [blocker,target] of Object.entries(state.blockAssign)){
+        if(+target===uid) delete state.blockAssign[blocker];
+      }
+    }
+  }
   state.milSelect[pi] = [...set];
   sincronizar();
 }
@@ -468,15 +528,42 @@ function selectedUnits(pi, role){
   return state.milSelect[pi] || [];
 }
 
+function assignBlocker(pi, uid, targetUid){
+  if(!canActPlayer(pi) || pi!==defensor() || state.fase!=='military' || state.militaryResolved || state.combatModel!=='paired') return;
+  ensureSelections();
+  const u = state.players[pi].unidades.find(x=>x.uid===uid);
+  const target = +targetUid;
+  const attackers = state.milSelect[atacante()] || [];
+  if(!u || u.zone!=='military' || !pronta(u)) return;
+  if(target && attackers.includes(target)){
+    state.blockAssign[uid] = target;
+  }else{
+    delete state.blockAssign[uid];
+  }
+  state.milSelect[pi] = Object.keys(state.blockAssign).map(Number);
+  sincronizar();
+}
+
+function removeMilitarySelection(pi, uid){
+  if(!state) return;
+  ensureSelections();
+  state.milSelect[pi] = (state.milSelect[pi] || []).filter(x=>x!==uid);
+  delete state.blockAssign[uid];
+  for(const [blocker,target] of Object.entries(state.blockAssign)){
+    if(+target===uid) delete state.blockAssign[blocker];
+  }
+}
+
 function resolverMilitar(){
   if(!canAdvance()) return;
   if(state.fase!=='military') return;
+  ensureSelections();
   const ai = atacante(), di = defensor();
   const auids = selectedUnits(ai,'atk');
-  const duids = selectedUnits(di,'def');
+  const duids = state.combatModel==='paired' ? Object.keys(state.blockAssign).map(Number) : selectedUnits(di,'def');
   const A = state.players[ai].unidades.filter(u=>auids.includes(u.uid) && u.zone==='military' && pronta(u));
   const D = state.players[di].unidades.filter(u=>duids.includes(u.uid) && u.zone==='military' && pronta(u));
-  if(!A.length){ log('Sem atacantes militares. O combate militar foi ignorado.'); state.militaryResolved = true; state.milSelect = {0:[],1:[]}; sincronizar(); return; }
+  if(!A.length){ log('Sem atacantes militares. O combate militar foi ignorado.'); state.militaryResolved = true; state.milSelect = {0:[],1:[]}; state.blockAssign = {}; sincronizar(); return; }
 
   const aPower = A.reduce((s,u)=>s+valorM(u),0);
   const dPower = D.reduce((s,u)=>s+valorM(u),0);
@@ -485,15 +572,19 @@ function resolverMilitar(){
   if(state.exhaustion){ [...A,...D].forEach(u=>u.exhausted=true); }
 
   if(state.combatModel==='armyOverflow') resolveArmyOverflow(A,D,margin);
-  if(state.combatModel==='paired') resolvePaired(A,D);
+  if(state.combatModel==='paired') resolvePaired(A,D,state.blockAssign);
   if(state.combatModel==='conquestCasualty') resolveConquestCasualty(A,D,margin);
 
-  if(margin>=5 && state.players[ai].mythic==='ares'){
+  if(margin>=5 && state.players[ai].mythic==='ares' && !state.aresExtraUsed){
     state.extraMilitary = true;
+    state.aresExtraUsed = true;
     log('Passiva de Ares ativada: margem militar de '+margin+'. Um combate militar extra esta disponivel.');
+  }else if(margin>=5 && state.players[ai].mythic==='ares' && state.aresExtraUsed){
+    log('Passiva de Ares ja foi usada neste turno.');
   }
   state.militaryResolved = true;
   state.milSelect = {0:[],1:[]};
+  state.blockAssign = {};
   checarVitoria();
   sincronizar();
 }
@@ -510,22 +601,34 @@ function resolveArmyOverflow(A,D,margin){
   }else log('Modelo 1: empate militar sem baixas.');
 }
 
-function resolvePaired(A,D){
+function resolvePaired(A,D,assignments){
   const ai = atacante(), di = defensor();
   const deadA = [], deadD = [];
   let dano = 0;
-  A.forEach((a,idx)=>{
-    const d = D[idx];
-    if(!d){ dano += valorM(a); return; }
-    const am = valorM(a), dm = valorM(d);
-    if(am>dm) deadD.push(d.uid);
+  const blockersByAttacker = {};
+  for(const d of D){
+    const target = assignments[d.uid];
+    if(!blockersByAttacker[target]) blockersByAttacker[target] = [];
+    blockersByAttacker[target].push(d);
+  }
+  A.forEach(a=>{
+    const blockers = blockersByAttacker[a.uid] || [];
+    if(!blockers.length){
+      dano += valorM(a);
+      log(a.nome+' não foi bloqueado.');
+      return;
+    }
+    const am = valorM(a);
+    const dm = blockers.reduce((sum,u)=>sum+valorM(u),0);
+    log(blockers.map(u=>u.nome).join(' + ')+' bloqueou '+a.nome+' ('+am+' vs '+dm+').');
+    if(am>dm) deadD.push(...blockers.map(u=>u.uid));
     else if(dm>am) deadA.push(a.uid);
-    else { deadA.push(a.uid); deadD.push(d.uid); }
+    else { deadA.push(a.uid); deadD.push(...blockers.map(u=>u.uid)); }
   });
   if(deadA.length) matarUnidades(ai,deadA,'combate');
   if(deadD.length) matarUnidades(di,deadD,'combate');
   state.players[di].vida -= dano;
-  log('Modelo 2: bloqueios pareados; '+dano+' de dano passou sem bloqueio.');
+  log('Modelo 2: bloqueios declarados pelo defensor; '+dano+' de dano passou sem bloqueio.');
 }
 
 function resolveConquestCasualty(A,D,margin){
@@ -548,6 +651,7 @@ function matarUnidades(pi,uids,reason){
     const idx = p.unidades.findIndex(u=>u.uid===uid);
     if(idx<0) continue;
     const [u] = p.unidades.splice(idx,1);
+    removeMilitarySelection(pi, uid);
     p.descarte.push(u.id);
     if(reason==='combate'){
       const other = state.players[1-pi];
@@ -561,6 +665,7 @@ function combateExtra(){
   state.extraMilitary = false;
   state.militaryResolved = false;
   state.milSelect = {0:[],1:[]};
+  state.blockAssign = {};
   log('Ares abriu um novo combate militar neste mesmo turno.');
   sincronizar();
 }
@@ -604,8 +709,19 @@ function aplicarVitoriaLocal(winner, loser){
   if(l.effect==='dev2'){ p.devocao += 2; log('Efeito de vitoria: '+p.nome+' ganhou +2 devocao adicional.'); }
 }
 
+function confirmarFimTurno(pi){
+  if(!canActPlayer(pi) || state.fase!=='end') return;
+  if(!state.endReady) state.endReady = {0:false,1:false};
+  state.endReady[pi] = true;
+  log(state.players[pi].nome+' confirmou fim de turno.');
+  if(state.endReady[0] && state.endReady[1]){
+    encerrarTurno();
+  }else{
+    sincronizar();
+  }
+}
+
 function encerrarTurno(){
-  if(!canAdvance()) return;
   state.turno += 1;
   state.atacante = 1-state.atacante;
   state.fase = 'local';
@@ -613,7 +729,10 @@ function encerrarTurno(){
   state.militaryResolved = false;
   state.influenceResolved = false;
   state.extraMilitary = false;
+  state.aresExtraUsed = false;
+  state.endReady = {0:false,1:false};
   state.milSelect = {0:[],1:[]};
+  state.blockAssign = {};
   for(const p of state.players){
     p.manaMax = Math.min(10,p.manaMax+1);
     p.mana = p.manaMax;
@@ -948,7 +1067,18 @@ function renderPhasePanel(){
     if(state.militaryResolved && !state.extraMilitary) controls += '<button onclick="proximaFase()" '+lock+'>Ir para influência</button>';
   }
   if(state.fase==='influence') controls = '<button onclick="resolverInfluencia()" '+(state.influenceResolved || !canAdvance()?'disabled':'')+'>Resolver influência</button>'+(state.influenceResolved?'<button onclick="proximaFase()" '+lock+'>Fim do turno</button>':'');
-  if(state.fase==='end') controls = '<button onclick="encerrarTurno()" '+lock+'>Encerrar turno</button>';
+  if(state.fase==='end'){
+    const ready = state.endReady || {0:false,1:false};
+    if(mode==='local'){
+      controls = [0,1].map(pi =>
+        '<button onclick="confirmarFimTurno('+pi+')" '+(ready[pi]?'disabled':'')+'>'+(ready[pi]?'Confirmado: ':'Confirmar: ')+state.players[pi].nome+'</button>'
+      ).join('');
+    }else{
+      const pi = myIndex;
+      controls = '<button onclick="confirmarFimTurno('+pi+')" '+(ready[pi]?'disabled':'')+'>'+(ready[pi]?'Você confirmou':'Confirmar fim do turno')+'</button>'+
+        '<span class="pill">J1 <b>'+(ready[0]?'ok':'...')+'</b></span><span class="pill">J2 <b>'+(ready[1]?'ok':'...')+'</b></span>';
+    }
+  }
   return '<div class="phase-panel"><h3>'+phaseName()+'</h3>'+
     '<div class="mini">'+textoFase()+'</div><div class="phase-controls">'+controls+'</div></div>';
 }
@@ -957,8 +1087,12 @@ function textoFase(){
   if(state.fase==='local') return 'O defensor revela qual Local Sagrado será disputado.';
   if(state.fase==='build') return 'Ambos podem baixar unidades nas duas zonas e usar ações.';
   if(state.fase==='precombat') return 'Espaço para ativos, magias e apoio dos Oráculos antes do combate.';
-  if(state.fase==='military') return 'Marque atacantes e defensores na Zona Militar, depois resolva pelo modelo escolhido.';
+  if(state.fase==='military'){
+    if(state.combatModel==='paired') return 'Atacante marca atacantes; defensor escolhe em cada unidade militar qual atacante ela bloqueia. Magias de combate podem mudar a conta antes de resolver.';
+    return 'Marque atacantes e defensores na Zona Militar, depois resolva pelo modelo escolhido. Magias de combate podem mudar a conta antes de resolver.';
+  }
   if(state.fase==='influence') return 'Todas as unidades prontas na Zona de Influência somam poder pelo Local Sagrado. Empate protege o defensor.';
+  if(state.fase==='end') return 'Os dois jogadores precisam confirmar antes de o turno realmente encerrar.';
   return 'Limpe buffs, compre cartas e passe a ficha de ataque.';
 }
 
@@ -973,15 +1107,30 @@ function renderUnit(pi,u){
   const isMil = u.zone==='military', role = pi===atacante()?'atk':'def';
   ensureSelections();
   const own = canActPlayer(pi);
-  const canCheck = state.fase==='military' && isMil && !state.militaryResolved && pronta(u) && own;
+  const pairedBlocker = state.combatModel==='paired' && pi===defensor();
+  const canCheck = state.fase==='military' && isMil && !state.militaryResolved && pronta(u) && own && !pairedBlocker;
   const checked = (state.milSelect[pi] || []).includes(u.uid) ? 'checked' : '';
   const check = canCheck ? '<input class="mil-check" type="checkbox" '+checked+' data-p="'+pi+'" data-role="'+role+'" data-uid="'+u.uid+'" onchange="toggleMilitar('+pi+','+u.uid+',this.checked)">' : '<span></span>';
   let btns = '';
   if(['build','precombat'].includes(state.fase)) btns += '<button onclick="moverUnidade('+pi+','+u.uid+')" '+(!own?'disabled':'')+'>Mover zona</button>';
   if(u.tags.includes('oraculo') && u.zone==='influence' && !u.supportUsed && ['precombat','military'].includes(state.fase)) btns += '<button onclick="apoiar('+pi+','+u.uid+')" '+(!own?'disabled':'')+'>Apoiar militar +'+valorI(u)+'</button>';
+  let blockSelect = '';
+  if(state.fase==='military' && isMil && pairedBlocker && !state.militaryResolved && pronta(u)){
+    const attackers = state.players[atacante()].unidades.filter(a => (state.milSelect[atacante()] || []).includes(a.uid) && a.zone==='military' && pronta(a));
+    const current = state.blockAssign[u.uid] || '';
+    if(own){
+      blockSelect = '<div class="block-select"><label>Bloquear atacante</label><select onchange="assignBlocker('+pi+','+u.uid+',this.value)">'+
+        '<option value="">Não bloquear</option>'+
+        attackers.map(a=>'<option value="'+a.uid+'" '+(current===a.uid?'selected':'')+'>'+a.nome+' (M '+valorM(a)+')</option>').join('')+
+        '</select></div>';
+    }else if(current){
+      const alvo = attackers.find(a=>a.uid===current);
+      blockSelect = '<div class="block-select">Bloqueando: <b>'+(alvo?alvo.nome:'atacante')+'</b></div>';
+    }
+  }
   return '<div class="unit-row '+(!pronta(u)?'exhausted':'')+'">'+check+'<div><div class="name">'+u.nome+'</div><div class="tags">'+(u.tags.join(', ')||'sem tag')+(u.supportUsed?' · apoio usado':'')+'</div></div>'+
     '<div class="unit-pow"><span class="m">M '+valorM(u)+'</span><span class="i">I '+valorI(u)+'</span></div>'+
-    (btns?'<div class="unit-buttons">'+btns+'</div>':'')+'</div>';
+    (btns?'<div class="unit-buttons">'+btns+'</div>':'')+blockSelect+'</div>';
 }
 
 render();
