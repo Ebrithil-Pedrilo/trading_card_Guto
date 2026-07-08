@@ -68,13 +68,15 @@ select,input{background:#08111d; color:var(--text); border:1px solid var(--line)
 .acts{display:flex; gap:6px; flex-wrap:wrap; margin-left:auto}
 .acts button{font-size:12px; padding:6px 9px}
 
-/* Painel do deus: passiva + ativa SEMPRE visiveis */
-.god-panel{
-  border:1px solid #5d4c2d; border-radius:10px; background:rgba(30,24,12,.5); padding:7px 10px;
-  font-size:12px; color:#e6dcc3; line-height:1.4; display:grid; gap:3px;
-}
-.god-panel .gp-row b{color:var(--gold)}
-@media(max-width:640px){ .god-panel{font-size:11px} }
+/* Kit do deus (passiva + ativa) DENTRO do bloco do jogador */
+.kit-lines{flex-basis:100%; font-size:11.5px; color:#e6dcc3; line-height:1.4; border-top:1px solid rgba(255,255,255,.08); padding-top:5px; display:grid; gap:2px}
+.kit-lines b{color:var(--gold)}
+@media(max-width:640px){ .kit-lines{font-size:10.5px} }
+
+/* Inspecao de carta no tabuleiro (toque para ver o efeito) */
+.uchip.inspec{cursor:pointer}
+.uchip.inspec:hover{border-color:#5b7593}
+.inspect-art{height:150px; border-radius:8px; border:1px solid #46576c; background:#101722 center/cover no-repeat; margin-bottom:10px}
 
 /* Mao horizontal */
 .hand-row{display:flex; gap:8px; overflow-x:auto; padding:10px 4px 6px; min-height:132px; align-items:stretch}
@@ -100,6 +102,27 @@ select,input{background:#08111d; color:var(--text); border:1px solid var(--line)
 .cardback{flex:0 0 40px; height:56px; border-radius:6px; border:1px solid #46576c; background:repeating-linear-gradient(135deg,#152033,#152033 4px,#0d1524 4px,#0d1524 8px)}
 .hidden-note{color:var(--muted); font-size:12px; padding:6px 8px; border:1px dashed #40546a; border-radius:8px}
 
+/* Painel de leitura: carta selecionada, inspecionada ou ultimas reveladas */
+.info-panel{border:1px solid var(--line); border-radius:10px; background:rgba(16,23,34,.88); padding:8px 10px}
+.info-title{font-size:11px; color:var(--gold); text-transform:uppercase; letter-spacing:1px; font-weight:900; margin-bottom:6px}
+.info-card{display:grid; grid-template-columns:74px 1fr; gap:10px; align-items:center}
+.info-art{width:74px; height:74px; border-radius:8px; border:1px solid #46576c; background:#101722 center/cover no-repeat}
+.info-name{font-weight:900; color:#fff; line-height:1.15}
+.info-meta{font-size:12px; color:var(--muted); margin-top:2px}
+.info-fx{font-size:12px; color:#dbe5ee; line-height:1.35; margin-top:5px}
+.reveal-list{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px}
+.reveal-tile{border:1px solid #34475b; border-radius:8px; background:#0b1320; padding:6px; display:grid; grid-template-columns:42px 1fr; gap:7px; min-height:70px; cursor:pointer}
+.reveal-tile:hover{border-color:var(--gold)}
+.reveal-art{width:42px; height:52px; border-radius:6px; border:1px solid rgba(255,255,255,.12); background:#101722 center/cover no-repeat}
+.reveal-player{font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.reveal-name{font-size:12px; color:#fff; font-weight:900; line-height:1.1}
+.reveal-fx{font-size:10px; color:#c9d5df; line-height:1.2; max-height:24px; overflow:hidden}
+@media(max-width:760px){
+  .info-card{grid-template-columns:58px 1fr}
+  .info-art{width:58px; height:58px}
+  .reveal-list{grid-template-columns:1fr 1fr}
+}
+
 /* Board */
 .board{display:grid; grid-template-areas:'L C R'; grid-template-columns:1fr 1fr 1fr; gap:10px; align-items:stretch; flex:1}
 @media(max-width:880px){ .board{grid-template-areas:'L R' 'C C'; grid-template-columns:1fr 1fr} }
@@ -108,14 +131,18 @@ select,input{background:#08111d; color:var(--text); border:1px solid var(--line)
 .lane{flex:1; border:1px solid var(--line); border-radius:9px; background:rgba(10,16,26,.7); padding:6px; display:flex; flex-direction:column; gap:5px; min-height:84px}
 .lane-head{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; display:flex; justify-content:space-between}
 .lane-pow{font-weight:900; color:#cfe3ff}
-.uchip{border:1px solid #36495e; border-radius:7px; background:#0b1320; padding:5px 7px; display:flex; align-items:center; gap:7px; font-size:12px}
+.uchip{border:1px solid #36495e; border-radius:7px; background:#0b1320; padding:5px 7px; display:grid; grid-template-columns:36px 24px 1fr auto; align-items:center; gap:7px; font-size:12px; min-height:50px}
+.uchip .uimg{width:36px; height:42px; border-radius:6px; border:1px solid rgba(255,255,255,.12); background:#101722 center/cover no-repeat}
 .uchip .upow{font-weight:900; font-size:14px; color:#cfe3ff; min-width:20px; text-align:center}
-.uchip .uname{flex:1; line-height:1.15}
+.uchip .uname{line-height:1.15}
 .uchip .ufx{font-size:9px; color:var(--muted)}
 .uchip.staged{border-style:dashed; border-color:#6d86a5; opacity:.85}
 .uchip.facedown{justify-content:center; color:var(--muted); border-style:dashed; letter-spacing:2px}
 .uchip.targetable{border-color:var(--gold); cursor:pointer; box-shadow:0 0 0 1px rgba(231,201,121,.5)}
 .uchip.targetable:hover{filter:brightness(1.2)}
+.uchip.inspec{cursor:pointer}
+.uchip.inspec:hover{border-color:#5b7593}
+.uchip.facedown{display:flex; min-height:42px}
 .lane-empty{color:#41546a; font-size:11px; text-align:center; padding:8px 0}
 .loccard{border:1px solid #8a6e35; border-radius:9px; padding:8px; text-align:center; background:radial-gradient(circle at 50% 15%,rgba(255,216,126,.22),transparent 55%),linear-gradient(180deg,#241d10,#141a24)}
 .loccard .licon{font-size:24px; line-height:1.1}
@@ -136,6 +163,10 @@ select,input{background:#08111d; color:var(--text); border:1px solid var(--line)
   padding:8px 12px; font-size:13px; font-weight:700; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
 }
 .hintbar button{font-size:12px; padding:5px 8px}
+@media(max-width:760px){
+  .hintbar{position:sticky; bottom:8px; z-index:20; box-shadow:0 8px 26px rgba(0,0,0,.45); backdrop-filter:blur(8px)}
+  .board{scroll-margin-top:8px}
+}
 
 .logwrap{border:1px solid var(--line); border-radius:10px; background:rgba(6,10,16,.88)}
 .logwrap summary{padding:8px 12px; cursor:pointer; color:var(--gold); font-weight:700; font-size:13px}
@@ -305,6 +336,7 @@ let peer = null, conn = null, conns = [];
 let lobbyStatus = '';
 // selecao local de alvo (nao sincroniza)
 let sel = null; // {tipo:'carta'|'ativa', idx?, precisa:[...], alvoUid?, passo}
+let inspect = null; // carta/unidade inspecionada localmente
 
 function online(){ return mode==='host' || mode==='guest'; }
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
@@ -312,6 +344,29 @@ function cleanNick(v,f){ const n=String(v||'').replace(/[<>&"']/g,'').trim().sli
 function nickIsGuto(v){ return String(v||'').trim().toLowerCase()==='guto'; }
 function log(m){ state.log.unshift(m); state.log = state.log.slice(0,200); }
 function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function reveladas(){ if(!state.reveladas) state.reveladas = []; return state.reveladas; }
+function focarBoard(){
+  if(window.matchMedia && window.matchMedia('(max-width:760px)').matches){
+    setTimeout(()=>{ const b=document.querySelector('.board'); if(b) b.scrollIntoView({block:'center', behavior:'smooth'}); }, 0);
+  }
+}
+function registrarRevelada(pi, item){
+  if(!state || !item) return;
+  const r = item.tipo==='ativa'
+    ? {tipo:'ativa', pi, deus:state.players[pi].deus, turno:state.turno}
+    : {tipo:item.tipo, pi, id:item.id, slot:item.slot, turno:state.turno};
+  const list = reveladas();
+  list.unshift(r);
+  state.reveladas = list.slice(0,10);
+}
+function inspecionarCarta(id){ inspect = {tipo:'carta', id}; render(); }
+function inspecionarAtiva(deus){ inspect = {tipo:'ativa', deus}; render(); }
+function inspecionarUnidade(pi, uid){
+  const u = state.players[pi].unidades.find(x=>x.uid===uid);
+  if(u) inspect = {tipo:'unidade', pi, uid, id:u.id};
+  render();
+}
+function limparInspecao(){ inspect = null; render(); }
 
 function novoPlayer(nome, deus){
   const p = { nome, deus, mana:0, deck:shuffle(deckDoDeus(deus)), mao:[], descarte:[],
@@ -332,13 +387,13 @@ function criarEstado(d1, d2, n1, n2, hideHands){
     resolvidos:[null,null,null], pend:[[],[],[]], lockAte:[0,0,0],
     movidasJogo:0, moveuNoTurno:false,
     players:[novoPlayer(n1,d1), novoPlayer(n2,d2)],
-    log:[], gameOver:null, passPending:false, hideHands:!!hideHands
+    log:[], reveladas:[], gameOver:null, passPending:false, hideHands:!!hideHands
   };
 }
 
 function iniciarJogo(){
   fecharRede();
-  mode = 'local'; myIndex = null;
+  mode = 'local'; myIndex = null; sel = null; inspect = null;
   state = criarEstado(
     $('#p1Mythic').value, $('#p2Mythic').value,
     cleanNick($('#p1Name').value,'Jogador 1'), cleanNick($('#p2Name').value,'Jogador 2'),
@@ -356,12 +411,11 @@ function iniciarTurno(n){
   state.jogadas = {0:false,1:false};
   state.vezLocal = state.ordem;
   state.moveuNoTurno = false;
-  // O Estagio Final revela no INICIO do turno 3 (ritmo Snap): efeitos de
-  // "3o local" ficam vivos e da para semear cedo o campo decisivo — mas os
-  // locais 1 e 2 ainda resolvem no fim do turno 3 (2x0 encerra na hora).
+  // O Estagio Final revela no INICIO do turno 3, mas todos os locais seguem
+  // abertos ate o fim da partida para manter os tres campos vivos.
   if(n===TURNO_RESOLVE && !state.locais[2]){
     state.locais[2] = state.locDeck.shift();
-    log('⚡ O ESTAGIO FINAL surge: '+LOCATIONS[state.locais[2]].nome+'! Ja aceita cartas — e sera o unico campo nos turnos 4 a '+TURNO_FINAL+'.');
+    log('⚡ O ESTAGIO FINAL surge: '+LOCATIONS[state.locais[2]].nome+'! Os tres locais seguem ativos ate o turno '+TURNO_FINAL+'.');
   }
   for(const [pi,p] of state.players.entries()){
     p.carry = p.mana;
@@ -417,6 +471,8 @@ function encerrar(pi){
 
 /* ==================== REVELACAO ==================== */
 function revelar(){
+  state.reveladas = [];
+  inspect = null;
   log('— REVELACAO do turno '+state.turno+' —');
   const primeiro = state.ordem;
   for(const pi of [primeiro, 1-primeiro]){
@@ -471,16 +527,8 @@ function fimDeTurno(){
     }
     p.sobraAnterior = p.mana;
   }
-  // resolucoes
-  if(state.turno===TURNO_RESOLVE){
-    resolverLocal(0); resolverLocal(1);
-    const pl = placarLocais();
-    if(pl[0]>=2 || pl[1]>=2){ decidirVencedor(); return; }
-    log('Agora tudo se decide no Estagio Final: '+LOCATIONS[state.locais[2]].nome+' (turnos 4 a '+TURNO_FINAL+').');
-    iniciarTurno(state.turno+1);
-    return;
-  }
-  if(state.turno>=TURNO_FINAL){ resolverLocal(2); decidirVencedor(); return; }
+  // resolucao final: os 3 locais ficam jogaveis ate o ultimo turno.
+  if(state.turno>=TURNO_FINAL){ resolverLocal(0); resolverLocal(1); resolverLocal(2); decidirVencedor(); return; }
   iniciarTurno(state.turno+1);
 }
 
@@ -611,6 +659,7 @@ function selecionarCarta(pi, idx){
   else if(c.alvo==='aliadaSlot'){ sel = {tipo:'carta', pi, idx, precisa:['aliada','slot']}; }
   else { stage(pi, {tipo:'spell', id, idx}); return; }
   render();
+  focarBoard();
 }
 
 function usarAtiva(pi){
@@ -618,9 +667,9 @@ function usarAtiva(pi){
   const p = state.players[pi], m = MYTHICS[p.deus];
   if(p.ativaUsada){ log('A ativa de '+m.nome+' ja foi usada nesta partida.'); render(); return; }
   if(p.mana<m.custoAtiva){ log('Mana insuficiente para a ativa.'); render(); return; }
-  if(m.alvoAtiva==='slot'){ sel = {tipo:'ativa', pi, precisa:['slot']}; render(); return; }
-  if(m.alvoAtiva==='aliada'){ sel = {tipo:'ativa', pi, precisa:['aliada']}; render(); return; }
-  if(m.alvoAtiva==='aliadaSlot'){ sel = {tipo:'ativa', pi, precisa:['aliada','slot']}; render(); return; }
+  if(m.alvoAtiva==='slot'){ sel = {tipo:'ativa', pi, precisa:['slot']}; render(); focarBoard(); return; }
+  if(m.alvoAtiva==='aliada'){ sel = {tipo:'ativa', pi, precisa:['aliada']}; render(); focarBoard(); return; }
+  if(m.alvoAtiva==='aliadaSlot'){ sel = {tipo:'ativa', pi, precisa:['aliada','slot']}; render(); focarBoard(); return; }
   stage(pi, {tipo:'ativa'});
 }
 
@@ -634,6 +683,7 @@ function clicarAlvoUnidade(pi, uid){
     return;
   }
   render();
+  focarBoard();
 }
 
 function clicarSlot(slot){
@@ -711,6 +761,7 @@ function desfazer(pi){
 
 /* ==================== RESOLUCAO DOS ITENS ==================== */
 function resolverItem(pi, item){
+  registrarRevelada(pi, item);
   const p = state.players[pi], o = state.players[1-pi];
   if(item.tipo==='unit'){ revelarUnidade(pi, item); return; }
   if(item.tipo==='ativa'){ resolverAtiva(pi, item); return; }
@@ -1177,7 +1228,7 @@ function desconectado(msg){
 }
 function resetar(){
   fecharRede();
-  state=null; mode='local'; myIndex=null; lobbyStatus=''; sel=null;
+  state=null; mode='local'; myIndex=null; lobbyStatus=''; sel=null; inspect=null;
   render();
 }
 function confirmarPasse(){ state.passPending=false; sel=null; render(); }
@@ -1199,6 +1250,7 @@ function render(){
         '<span class="pill">Placar <b>'+pl[0]+' x '+pl[1]+'</b></span>'+
         '<div class="grow"></div><button onclick="resetar()">Novo teste</button>'+
       '</div>'+
+      renderInfoPanel(bottom)+
       renderPzone(top, false)+
       '<div class="board">'+
         renderSlot(0,'L',top,bottom)+renderCentro(top,bottom)+renderSlot(1,'R',top,bottom)+
@@ -1209,6 +1261,87 @@ function render(){
         state.log.map(x=>'<div>'+x+'</div>').join('')+
       '</div></details>'+
     '</div>'+renderOverlay();
+}
+
+function renderInfoPanel(bottom){
+  if(sel){
+    if(sel.tipo==='ativa'){
+      const p = state.players[sel.pi], m = MYTHICS[p.deus];
+      return renderInfoCard({
+        titulo:'Ativa selecionada',
+        nome:'ATIVA: '+m.nome,
+        img:m.img,
+        meta:p.nome+' • custo '+m.custoAtiva,
+        texto:m.ativa,
+        extra:'Agora toque no alvo indicado.'
+      });
+    }
+    const id = state.players[sel.pi].mao[sel.idx];
+    const c = CARDS[id], p = state.players[sel.pi];
+    return renderInfoCard({
+      titulo:'Carta selecionada',
+      nome:c.nome,
+      img:c.img,
+      meta:p.nome+' • '+(c.tipo==='unit' ? c.poder+' poder' : 'magia')+' • custo '+custoCarta(sel.pi,id),
+      texto:c.texto || 'Sem efeito.',
+      extra:'Agora toque no campo ou na unidade alvo.'
+    });
+  }
+  if(inspect){
+    if(inspect.tipo==='ativa'){
+      const m = MYTHICS[inspect.deus];
+      return renderInfoCard({titulo:'Inspecionando', nome:'ATIVA: '+m.nome, img:m.img, meta:'Poder do commander', texto:m.ativa, extra:'Toque em outra carta do board para trocar.'});
+    }
+    const c = CARDS[inspect.id];
+    let meta = c.tipo==='unit' ? c.poder+' poder' : 'magia';
+    if(inspect.tipo==='unidade'){
+      const p = state.players[inspect.pi];
+      const u = p.unidades.find(x=>x.uid===inspect.uid);
+      if(u) meta = p.nome+' • '+poderUnidade(u,inspect.pi)+' poder atual';
+    }
+    return renderInfoCard({titulo:'Inspecionando', nome:c.nome, img:c.img, meta, texto:c.texto || 'Sem efeito.', extra:'Toque em outra carta do board para trocar. <button onclick="limparInspecao()">Fechar</button>'});
+  }
+  const rev = (state.reveladas||[]).slice(0,4);
+  if(!rev.length){
+    const p = state.players[bottom], m = MYTHICS[p.deus];
+    return '<div class="info-panel">'+
+      '<div class="info-title">Painel de efeitos</div>'+
+      '<div class="info-card">'+
+        '<div class="info-art" style="background-image:url('+m.img+')"></div>'+
+        '<div><div class="info-name">'+m.nome+'</div>'+
+        '<div class="info-meta">'+p.nome+'</div>'+
+        '<div class="info-fx"><b>Passiva:</b> '+m.passiva+'<br><b>Ativa:</b> '+m.ativa+'</div></div>'+
+      '</div>'+
+    '</div>';
+  }
+  const tiles = rev.map((r,i)=>{
+    const p = state.players[r.pi];
+    if(r.tipo==='ativa'){
+      const m = MYTHICS[r.deus];
+      return '<div class="reveal-tile" onclick="inspecionarAtiva(\''+r.deus+'\')">'+
+        '<div class="reveal-art" style="background-image:url('+m.img+')"></div>'+
+        '<div><div class="reveal-player">'+p.nome+'</div><div class="reveal-name">ATIVA: '+m.nome+'</div><div class="reveal-fx">'+m.ativa+'</div></div>'+
+      '</div>';
+    }
+    const c = CARDS[r.id];
+    return '<div class="reveal-tile" onclick="inspecionarCarta(\''+r.id+'\')">'+
+      '<div class="reveal-art" style="background-image:url('+(c.img||MYTHICS[p.deus].img)+')"></div>'+
+      '<div><div class="reveal-player">'+p.nome+'</div><div class="reveal-name">'+c.nome+'</div><div class="reveal-fx">'+(c.texto||'Sem efeito.')+'</div></div>'+
+    '</div>';
+  }).join('');
+  return '<div class="info-panel"><div class="info-title">Ultimas cartas reveladas</div><div class="reveal-list">'+tiles+'</div></div>';
+}
+
+function renderInfoCard(d){
+  return '<div class="info-panel">'+
+    '<div class="info-title">'+d.titulo+'</div>'+
+    '<div class="info-card">'+
+      '<div class="info-art" style="background-image:url('+(d.img||'')+')"></div>'+
+      '<div><div class="info-name">'+d.nome+'</div>'+
+      '<div class="info-meta">'+(d.meta||'')+'</div>'+
+      '<div class="info-fx">'+(d.texto||'')+(d.extra?'<div class="info-meta" style="margin-top:6px">'+d.extra+'</div>':'')+'</div></div>'+
+    '</div>'+
+  '</div>';
 }
 
 function renderPzone(pi, isBottom){
@@ -1227,14 +1360,13 @@ function renderPzone(pi, isBottom){
         '<button onclick="desfazer('+pi+')" '+((!podeAgir||!p.staging.length)?'disabled':'')+'>Desfazer</button>'+
         '<button onclick="encerrar('+pi+')" '+(!podeAgir?'disabled':'')+'>'+(state.jogadas[pi]?'Aguardando...':'Encerrar')+'</button>'+
       '</div>'+
-    '</div>';
-  const kit =
-    '<div class="god-panel">'+
-      '<div class="gp-row">🛡 <b>Passiva:</b> '+m.passiva+'</div>'+
-      '<div class="gp-row">⚡ <b>Ativa'+(p.ativaUsada?' (usada)':'')+':</b> '+m.ativa+'</div>'+
+      '<div class="kit-lines">'+
+        '<div>🛡 <b>Passiva:</b> '+m.passiva+'</div>'+
+        '<div>⚡ <b>Ativa'+(p.ativaUsada?' (usada)':'')+':</b> '+m.ativa+'</div>'+
+      '</div>'+
     '</div>';
   const hand = renderHand(pi);
-  return '<div class="pzone">'+(isBottom ? strip+kit+hand : hand+kit+strip)+'</div>';
+  return '<div class="pzone">'+(isBottom ? strip+hand : hand+strip)+'</div>';
 }
 
 function verMao(pi){
@@ -1284,7 +1416,7 @@ function renderCentro(top,bottom){
     '<b>Turno '+state.turno+' de '+TURNO_FINAL+'</b><br>'+
     'Jogadas simultaneas: cada um joga em segredo e confirma.<br>'+
     'O <b>Estagio Final</b> surge AQUI no inicio do turno <b>'+TURNO_RESOLVE+'</b>.<br>'+
-    'Os 2 locais resolvem no fim do turno '+TURNO_RESOLVE+'; o Estagio decide nos turnos 4-'+TURNO_FINAL+'.<br>'+
+    'A partir dali, os 3 locais ficam ativos ate o fim do turno '+TURNO_FINAL+'.<br>'+
     '<span style="color:var(--muted);font-size:12px">Mana nao gasta acumula. Revela primeiro: '+state.players[state.ordem].nome+'.</span>'+
   '</div></div>';
 }
@@ -1303,17 +1435,28 @@ function renderSlot(slot, area, top, bottom){
     for(const s of stagedAqui){
       if(mostrar){
         const c = s.tipo==='ativa' ? {nome:'ATIVA: '+MYTHICS[p.deus].nome, poder:''} : CARDS[s.id];
-        extra += '<div class="uchip staged"><span class="upow">'+(s.tipo==='unit'?c.poder:'✦')+'</span><span class="uname">'+c.nome+' <small>(aguarda)</small></span></div>';
+        const img = s.tipo==='ativa' ? MYTHICS[p.deus].img : c.img;
+        const click = s.tipo==='ativa' ? ' onclick="inspecionarAtiva(\''+p.deus+'\')"' : ' onclick="inspecionarCarta(\''+s.id+'\')"';
+        extra += '<div class="uchip staged inspec"'+click+'>'+
+          '<span class="uimg" style="background-image:url('+(img||'')+')"></span>'+
+          '<span class="upow">'+(s.tipo==='unit'?c.poder:'✦')+'</span>'+
+          '<span class="uname">'+c.nome+' <small>(aguarda)</small></span>'+
+          '<span class="ufx">?</span>'+
+        '</div>';
       }else{
         extra += '<div class="uchip facedown">? ? ?</div>';
       }
     }
     const chips = units.map(u=>{
       const alvo = sel && sel.precisa && sel.precisa[0]==='aliada' && sel.pi===pi && canAct(pi);
-      return '<div class="uchip'+(alvo?' targetable':'')+'"'+(alvo?' onclick="clicarAlvoUnidade('+pi+','+u.uid+')"':'')+' title="'+CARDS[u.id].texto+'">'+
+      const c = CARDS[u.id];
+      const click = alvo ? ' onclick="clicarAlvoUnidade('+pi+','+u.uid+')"'
+        : ' onclick="inspecionarUnidade('+pi+','+u.uid+')"';
+      return '<div class="uchip inspec'+(alvo?' targetable':'')+'"'+click+'>'+
+        '<span class="uimg" style="background-image:url('+(c.img||'')+')"></span>'+
         '<span class="upow">'+poderUnidade(u,pi)+'</span>'+
         '<span class="uname">'+u.nome+((u.bonus-u.debuf)!==0?' <small>('+((u.bonus-u.debuf)>0?'+':'')+(u.bonus-u.debuf)+')</small>':'')+'</span>'+
-        (CARDS[u.id].texto && CARDS[u.id].texto!=='Sem efeito.'?'<span class="ufx">✦</span>':'')+
+        (c.texto && c.texto!=='Sem efeito.'?'<span class="ufx">✦</span>':'')+
       '</div>';
     }).join('');
     return '<div class="lane"><div class="lane-head"><span>'+p.nome+'</span><span class="lane-pow">'+somaPoder(pi,slot)+' ⚔</span></div>'+
@@ -1374,7 +1517,7 @@ function renderSetup(){
         '</div>'+
         '<div class="rules-card"><h2>Regras desta versao</h2><ul>'+
           '<li><b>Simultaneo:</b> os dois jogam em segredo. Quando ambos apertam Encerrar, tudo revela — quem revela primeiro alterna por turno.</li>'+
-          '<li>2 Locais resolvem no fim do turno '+TURNO_RESOLVE+' (maior poder leva; 2x0 encerra). O <b>Estagio Final</b> revela no inicio do turno '+TURNO_RESOLVE+' — da para semear cedo — e e o unico campo nos turnos 4-'+TURNO_FINAL+'.</li>'+
+          '<li>O <b>Estagio Final</b> revela no inicio do turno '+TURNO_RESOLVE+' — da para semear cedo — e os 3 locais continuam ativos ate o fim do turno '+TURNO_FINAL+'.</li>'+
           '<li>Turno N da +N de mana; o que sobra <b>acumula</b>.</li>'+
           '<li>Cada deus tem <b>passiva</b> e <b>ativa (1x por partida)</b> — sempre visiveis no painel.</li>'+
           '<li>Decks de 12 cartas unicas por deus. Cartas nao morrem: poder x custo x efeito.</li>'+
