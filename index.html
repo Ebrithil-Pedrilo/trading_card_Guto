@@ -799,7 +799,7 @@ const CARDS = {
   marga_angeling:{f:'margaretha',name:'Angeling',type:'unit',cost:3,atk:2,hp:3,icon:'😇',text:'No fim da vez do dono, conceda 1 Escudo a um aliado.',endTurnShield:1},
   marga_maximize:{f:'margaretha',name:'Maximizar Poder',type:'tactic',speed:'slow',global:true,cost:6,icon:'⬆️',text:'Seu poder também concede +1/+1 a criaturas curadas.',onPlay:{k:'upgradeHero',mode:'margaretha'}},
   marga_magnus:{f:'margaretha',name:'Magnus Exorcismus',type:'tactic',speed:'slow',global:true,cost:7,icon:'✝️',text:'Cause 4 a todos inimigos; 6 se você curou nesta vez.',onPlay:{k:'magnus'}},
-  marga_resurrection:{f:'margaretha',name:'Ressurreição',type:'tactic',speed:'slow',cost:8,icon:'🕊️',text:'Escolha uma criatura aliada destruída. Retorne-a ao campo e dê 2 Escudo.',onPlay:{k:'resurrectHighest',shield:2}},
+  marga_resurrection:{f:'margaretha',name:'Ressurreição',type:'tactic',speed:'slow',cost:8,icon:'🕊️',text:'Escolha uma criatura aliada destruída. Retorne-a ao campo e dê 2 Escudo.',onPlay:{k:'resurrectChoice',shield:2,sourceCardId:'marga_resurrection'}},
   marga_divine_light:{f:'margaretha',name:'Luz Divina',type:'tactic',speed:'fast',targetUnit:'any',cost:2,icon:'🌟',text:'Cause 2 a um inimigo ou cure 2 de um aliado.',onPlay:{k:'damageOrHeal',n:2}},
   marga_lex_divina:{f:'margaretha',name:'Lex Divina',type:'tactic',speed:'slow',targetUnit:'enemy',cost:1,icon:'🤫',text:'Silencie uma criatura inimiga. Silêncio: a unidade perde os efeitos impressos da carta.',onPlay:{k:'silence'}},
   marga_lex_aeterna:{f:'margaretha',name:'Lex Aeterna',type:'tactic',speed:'fast',targetUnit:'enemy',cost:4,icon:'⚡',text:'O próximo dano recebido pelo alvo é dobrado.',onPlay:{k:'doubleNextDamage'}},
@@ -1003,7 +1003,7 @@ const GENERAL_CARDS = {
   g_serenity_pirate_swordsman:{f:'serenity',general:true,color:'serenity',tribe:'pirate',name:'Espadachim Pirata',type:'unit',cost:2,atk:2,hp:3,icon:'🗡️',text:'Tripulante equilibrado da Frota Negra.'},
   g_serenity_veteran_sailor:{f:'serenity',general:true,color:'serenity',tribe:'pirate',name:'Marinheiro Veterano',type:'unit',cost:3,atk:3,hp:4,icon:'⚓',text:'Marinheiro resistente e experiente.'},
 
-  g_sorrow_lament:{f:'sorrow',general:true,color:'sorrow',name:'Lamento da Viúva',type:'tactic',speed:'slow',global:true,cost:6,icon:'🕯️',text:'Ressuscite a unidade aliada mais recente com +2 ATQ.',onPlay:{k:'resurrectLatest',atk:2}},
+  g_sorrow_lament:{f:'sorrow',general:true,color:'sorrow',name:'Lamento da Viúva',type:'tactic',speed:'slow',global:true,cost:6,icon:'🕯️',text:'Escolha uma unidade aliada no cemitério. Ressuscite-a com +2 ATQ.',onPlay:{k:'resurrectChoice',atk:2,sourceCardId:'g_sorrow_lament'}},
   g_sorrow_cry:{f:'sorrow',general:true,color:'sorrow',name:'Choro da Alma',type:'tactic',speed:'fast',targetUnit:'enemy',cost:2,icon:'💧',text:'Cause 2. Se morrer, a dupla inimiga sofre 2.',onPlay:{k:'executeTeamDamage',n:2,teamDamage:2}},
   g_sorrow_absent:{f:'sorrow',general:true,color:'sorrow',name:'Amigo Ausente',type:'unit',cost:1,atk:3,hp:3,icon:'👤',text:'Não começa na mão inicial.',noOpeningHand:true},
   g_sorrow_lastwish:{f:'sorrow',general:true,color:'sorrow',name:'Último Pedido',type:'tactic',speed:'slow',targetUnit:'ally',cost:3,icon:'📜',text:'Sacrifique; compre 2 e cure a dupla em 2.',onPlay:{k:'sacrificeDrawHeal',draw:2,heal:2}},
@@ -1355,7 +1355,7 @@ function createGame(config, rnd = Math.random) {
     seq: 0, events: [], // eventos p/ VFX (a UI consome)
     crossPool: !!config.crossPool, // knob: doar mana ao parceiro (default on)
     doubleCoin: !!config.doubleCoin,
-    chain:null, pendingChoice:null, mulligan:{order:TURN_ORDER.slice(),cursor:0,done:[false,false,false,false]},
+    chain:null, pendingChoice:null, mulligan:{mode:config.simultaneousMulligan?'simultaneous':'sequential',order:TURN_ORDER.slice(),cursor:0,done:[false,false,false,false]},
     delayedEffects:[], playedIds:[new Set(),new Set(),new Set(),new Set()], teamManaBonus:[0,0],
   };
   logMsg(g,`Abertura: todos começam com 5 cartas. A Moeda é adicional${config.doubleCoin?' para Carry e Suporte do Time B':' para o Suporte do Time B'}.`);
@@ -1368,9 +1368,13 @@ function takeOpeningCard(deck){
   while(entry&&CARDS[entry.cardId]?.noOpeningHand&&guard-->0){deck.unshift(entry);entry=deck.pop();}
   return entry||null;
 }
+function canChooseMulligan(g,seat){
+  const phase=g?.mulligan;if(!phase||!Number.isInteger(seat)||phase.done?.[seat])return false;
+  return phase.mode==='simultaneous'||phase.order?.[phase.cursor]===seat;
+}
 function mulligan(g,seat,cardUids=[]){
-  const phase=g.mulligan,actor=phase?.order?.[phase.cursor];
-  if(g.over||!phase||actor!==seat||!Array.isArray(cardUids))return {ok:false,err:'mulligan'};
+  const phase=g.mulligan;
+  if(g.over||!phase||!canChooseMulligan(g,seat)||!Array.isArray(cardUids))return {ok:false,err:'mulligan'};
   const p=g.players[seat],wanted=[...new Set(cardUids.map(String))];
   const selected=wanted.map(uid=>p.hand.find(entry=>String(entry.uid)===uid));
   if(selected.some(entry=>!entry||!CARDS[cardIdOf(entry)]||cardIdOf(entry)==='neutral_coin'||CARDS[cardIdOf(entry)].noMulligan))return {ok:false,err:'carta-mulligan'};
@@ -1381,14 +1385,16 @@ function mulligan(g,seat,cardUids=[]){
   p.deck.push(...selected);
   p.deck=shuffle(p.deck);
   phase.done[seat]=true;
-  logMsg(g,`${p.name} concluiu o mulligan${selected.length?` e trocou ${selected.length} carta${selected.length===1?'':'s'}`:' sem trocar cartas'}.`);
-  ev(g,{type:'mulligan',seat,count:selected.length});
-  phase.cursor++;
-  if(phase.cursor>=phase.order.length){
+  logMsg(g,phase.mode==='simultaneous'?`${p.name} confirmou o mulligan.`:`${p.name} concluiu o mulligan${selected.length?` e trocou ${selected.length} carta${selected.length===1?'':'s'}`:' sem trocar cartas'}.`);
+  ev(g,phase.mode==='simultaneous'?{type:'mulligan',seat}:{type:'mulligan',seat,count:selected.length});
+  if(phase.mode==='sequential')phase.cursor++;
+  else phase.cursor=phase.order.findIndex(candidate=>!phase.done[candidate]);
+  if(phase.done.every(Boolean)){
     g.mulligan=null;
     logMsg(g,'Mulligans concluídos. A batalha começou.');
     ev(g,{type:'mulliganComplete',seat:g.active});
-  }else ev(g,{type:'mulliganTurn',seat:phase.order[phase.cursor]});
+  }else if(phase.mode==='sequential')ev(g,{type:'mulliganTurn',seat:phase.order[phase.cursor]});
+  else ev(g,{type:'mulliganReady',seat,ready:phase.done.filter(Boolean).length});
   return {ok:true,count:selected.length};
 }
 
@@ -1865,18 +1871,11 @@ function applyEffect(g, seat, lane, selfUnit, onPlay, explicitTarget=null) {
   if(k==='purgeEnemies'){for(const u of g.units.filter(x=>teamOf(x.owner)!==teamOf(seat))){u.atkPerm=0;u.atkTemp=0;u.shield=0;u.ward=0;}return;}
   if(k==='swapEnemyStats'&&explicitTarget){const other=strongest(g.units.filter(x=>teamOf(x.owner)===teamOf(explicitTarget.owner)&&x.uid!==explicitTarget.uid));if(other){[explicitTarget.atk,other.atk]=[other.atk,explicitTarget.atk];[explicitTarget.hp,other.hp]=[other.hp,explicitTarget.hp];[explicitTarget.maxHp,other.maxHp]=[other.maxHp,explicitTarget.maxHp];}return;}
   if(k==='magnus'){const dmg=g.players[seat].healedThisTurn?6:4;for(const u of g.units.filter(x=>teamOf(x.owner)!==teamOf(seat)).slice())dealToUnit(g,u,dmg);return;}
-  if(k==='resurrectHighest'){
+  if(k==='resurrectChoice'||k==='resurrectHighest'||k==='resurrectLatest'){
     const available=g.graveyard.some(x=>teamOf(x.owner)===teamOf(seat)&&CARDS[x.cardId]?.type==='unit');
-    if(available&&g.units.filter(x=>teamOf(x.owner)===teamOf(seat)).length<LANE_CAP)g.pendingChoice={kind:'resurrection',seat,shield:onPlay.shield||0,atk:onPlay.atk||0,sourceCardId:'marga_resurrection',lane};
+    const sourceCardId=onPlay.sourceCardId||(k==='resurrectLatest'?'g_sorrow_lament':'marga_resurrection');
+    if(available&&g.units.filter(x=>teamOf(x.owner)===teamOf(seat)).length<LANE_CAP)g.pendingChoice={kind:'resurrection',seat,shield:onPlay.shield||0,atk:onPlay.atk||0,sourceCardId,lane};
     return;
-  }
-  if(k==='resurrectLatest'){
-    const dead=g.graveyard.filter(x=>teamOf(x.owner)===teamOf(seat)&&CARDS[x.cardId]?.type==='unit')[0];
-    if(dead&&g.units.filter(x=>teamOf(x.owner)===teamOf(seat)).length<LANE_CAP){
-      g.graveyard.splice(g.graveyard.indexOf(dead),1);const cardOwner=Number.isInteger(dead.cardOwner)?dead.cardOwner:dead.owner,p=g.players[cardOwner],discardIndex=dead.cardUid?(p.discard||[]).findIndex(entry=>String(entry.uid)===String(dead.cardUid)):-1;
-      const entry=discardIndex>=0?p.discard.splice(discardIndex,1)[0]:null,u=spawnUnit(g,seat,dead.cardId,dead.lane,true,{cardOwner,sourceCardUid:entry?.uid||dead.cardUid||null,recyclable:!!entry&&entry.recyclable!==false&&!CARDS[dead.cardId]?.token});
-      u.atkPerm+=(onPlay.atk||0);grantShield(g,u,onPlay.shield||0);
-    }return;
   }
   if(k==='damageOrHeal'&&explicitTarget){if(teamOf(explicitTarget.owner)===teamOf(seat))healUnit(g,explicitTarget,n,seat);else dealToUnit(g,explicitTarget,n);return;}
   if(k==='invertHealing'&&explicitTarget){if(!hasStatusImmunity(g,explicitTarget))explicitTarget.invertHealing=true;return;}
@@ -2106,6 +2105,7 @@ function tacticHasEffect(g,seat,card,lane){
   if(k==='poisonMany'||k==='poisonEnemies'||k==='poisonStrongest')return g.units.some(u=>teamOf(u.owner)!==teamOf(seat)&&!hasStatusImmunity(g,u));
   if(k==='sacrificePoison')return g.units.some(u=>teamOf(u.owner)===teamOf(seat));
   if(k==='waterCounter')return !!g.chain?.stack?.some(item=>item.kind==='attack'&&teamOf(item.seat)!==teamOf(seat));
+  if(['resurrectChoice','resurrectHighest','resurrectLatest'].includes(k))return g.units.filter(u=>teamOf(u.owner)===teamOf(seat)).length<LANE_CAP&&g.graveyard.some(dead=>teamOf(dead.owner)===teamOf(seat)&&CARDS[dead.cardId]?.type==='unit');
   return true;
 }
 function responseOrder(originSeat){return [...teamSeats(1-teamOf(originSeat)),partnerOf(originSeat),originSeat];}
@@ -2355,10 +2355,11 @@ function resolvePendingChoice(g,seat,targetUid,graveIndex,choiceMode){
     if(g.units.filter(x=>teamOf(x.owner)===teamOf(seat)).length>=LANE_CAP)return {ok:false,err:'campo-cheio'};
     const dead=picked.dead;g.graveyard.splice(picked.graveIndex,1);
     const cardOwner=Number.isInteger(dead.cardOwner)?dead.cardOwner:dead.owner,p=g.players[cardOwner],discardIndex=dead.cardUid?(p.discard||[]).findIndex(entry=>String(entry.uid)===String(dead.cardUid)):-1;
-    const entry=discardIndex>=0?p.discard.splice(discardIndex,1)[0]:null,u=spawnUnit(g,seat,dead.cardId,choice.lane??dead.lane,true,{cardOwner,sourceCardUid:entry?.uid||dead.cardUid||null,recyclable:!!entry&&entry.recyclable!==false&&!CARDS[dead.cardId]?.token});
+    const entry=discardIndex>=0?p.discard.splice(discardIndex,1)[0]:null,hasCharge=CARDS[dead.cardId]?.passive==='charge',u=spawnUnit(g,seat,dead.cardId,choice.lane??dead.lane,!hasCharge,{cardOwner,sourceCardUid:entry?.uid||dead.cardUid||null,recyclable:!!entry&&entry.recyclable!==false&&!CARDS[dead.cardId]?.token});
     u.atkPerm+=(choice.atk||0);grantShield(g,u,choice.shield||0);g.pendingChoice=null;
-    ev(g,{type:'resurrection',owner:seat,uid:u.uid,lane:u.lane,cardId:u.cardId,shield:choice.shield||0});
-    logMsg(g,`${g.players[seat].name} ressuscitou ${CARDS[u.cardId]?.name||'uma criatura'}${choice.shield?` com ${choice.shield} de Escudo`:''}.`,'marga_resurrection');
+    ev(g,{type:'resurrection',owner:seat,uid:u.uid,lane:u.lane,cardId:u.cardId,shield:choice.shield||0,atk:choice.atk||0,ready:!u.exhausted});
+    const bonuses=[choice.atk?`+${choice.atk} ATQ`:null,choice.shield?`${choice.shield} de Escudo`:null,hasCharge?'Ímpeto ativo':null].filter(Boolean).join(', ');
+    logMsg(g,`${g.players[seat].name} ressuscitou ${CARDS[u.cardId]?.name||'uma criatura'}${bonuses?` com ${bonuses}`:''}.`,choice.sourceCardId||'marga_resurrection');
     resumeChainAfterChoice(g);
     return {ok:true,uid:u.uid};
   }
@@ -2495,8 +2496,8 @@ function legalActions(g) {
   acts.push({ type:g.chain?'pass':'end' });
   return acts;
 }
-function doAction(g, a) {
-  const actor=currentActorSeat(g);
+function doAction(g, a, seatOverride) {
+  const actor=g.mulligan&&Number.isInteger(seatOverride)?seatOverride:currentActorSeat(g);
   if(g.mulligan)return a.type==='mulligan'?mulligan(g,actor,a.cardUids):{ok:false,err:'mulligan-pendente'};
   if(g.pendingChoice)return a.type==='choice'?resolvePendingChoice(g,actor,a.targetUid,a.graveIndex,a.choice):{ok:false,err:'escolha-pendente'};
   if (a.type === 'play') return playCard(g, actor, a.cardUid!=null?a.cardUid:a.handIndex, a.lane,a.targetUid);
@@ -2510,7 +2511,7 @@ function doAction(g, a) {
 
 const API = { TURN_ORDER, WARLORDS, CARDS, LANES, teamOf, partnerOf, enemySeats, teamSeats, roleOfSeat,
   createGame, playCard, attack, inspire, useHeroPower, heroTargetUids, heroTargetLanes, canUseHeroPower,
-  endTurn, mulligan, legalActions, doAction, atkVal, cardIdOf, validCardTargetUids,currentActorSeat,hasLegalFastResponse,passPriority,resolveChain,catalystChoiceTargets,resurrectionChoiceTargets,sacrificePoisonChoiceTargets,resolvePendingChoice,
+  endTurn, mulligan, canChooseMulligan, legalActions, doAction, atkVal, cardIdOf, validCardTargetUids,currentActorSeat,hasLegalFastResponse,passPriority,resolveChain,catalystChoiceTargets,resurrectionChoiceTargets,sacrificePoisonChoiceTargets,resolvePendingChoice,
   unitsInLane, alliesInLane, enemiesInLane, attackTargets, canAttackWith, canPlay,draw,discardCard,recycleDiscard,killUnit,treasureCount,gainPowder,gainTreasures,triggerBarrage,activatePlunder,
   validateRecipe,automaticRecipe,availableGeneral };
 
@@ -2736,7 +2737,7 @@ const setup = {
 const CARRY_OPTS = ['raven','viking','druid','succubus','pirate','bloodlord','rats','seyren','flamel','ironbeard','dravos','shizune'];
 const SUPPORT_OPTS = ['vale','miku','priest','enchantress','arena','druid','rats','flamel','margaretha','ironbeard','dravos','tomioka'];
 
-const NET_PROTOCOL='gutho-2v2-v24', BUILD_ID='2026-07-27-release-target1', ROOM_PREFIX='gutho-2v2-v24-';
+const NET_PROTOCOL='gutho-2v2-v26', BUILD_ID='2026-07-27-simultaneous-mulligan1', ROOM_PREFIX='gutho-2v2-v26-';
 const NET={mode:'local',phase:'menu',peer:null,hostConn:null,connections:new Map(),roomCode:'',
   clientId:'',resumeToken:'',localSeat:null,status:'offline',revision:0,pending:null,retry:0,retryTimer:null,roomPublic:false};
 const HOST={lobby:null,game:null,revision:0,requestCache:new Map()};
@@ -2875,7 +2876,11 @@ function isNetworkPaused(){
   if(NET.mode==='host'&&HOST.lobby?.phase==='game')return HOST.lobby.seats.some(id=>!HOST.lobby.members[id]?.connected);
   return !!G?.paused;
 }
-function isMyTurn(){return !!G&&!G.over&&!isNetworkPaused()&&(NET.mode==='local'||NET.localSeat===currentActorSeat(G))&&!NET.pending;}
+function isMyTurn(){
+  if(!G||G.over||isNetworkPaused()||NET.pending)return false;
+  if(G.mulligan)return NET.mode==='local'?canChooseMulligan(G,currentActorSeat(G)):canChooseMulligan(G,NET.localSeat);
+  return NET.mode==='local'||NET.localSeat===currentActorSeat(G);
+}
 function selectionStillLegal(game,seat,selection){
   if(!game||!selection||game.over||currentActorSeat(game)!==seat)return false;
   if(selection.mode==='attack')return canAttackWith(game,seat,selection.uid);
@@ -3162,7 +3167,7 @@ function hostStartOnline(){
   if(NET.mode!=='host'||!lobbyCanStart()){lobbyMessage='Todos precisam ocupar um assento, escolher Warlord, ter um deck válido e marcar Pronto.';renderLobby();return;}
   removePublishedRoom();
   const L=HOST.lobby,cfg={warlords:L.seats.map(id=>L.members[id].warlordId),names:L.seats.map(id=>L.members[id].name),
-    decks:L.seats.map(id=>cloneDeckConfig(L.members[id])),crossPool:L.crossPool,doubleCoin:L.doubleCoin};
+    decks:L.seats.map(id=>cloneDeckConfig(L.members[id])),crossPool:L.crossPool,doubleCoin:L.doubleCoin,simultaneousMulligan:true};
   HOST.game=createGame(cfg);HOST.revision=1;HOST.lobby.phase='game';G=HOST.game;NET.phase='game';NET.revision=1;NET.localSeat=seatForClient(NET.clientId);sel=null;mulliganSelection.clear();mulliganSelectionSeat=null;revealed=true;lastSeq=G.seq;lobbyMessage='';
   broadcastGame();render();
 }
@@ -3172,7 +3177,7 @@ function buildGameView(game,viewerSeat){
     lanes:game.lanes.map(l=>({...l})),units:game.units.map(u=>({...u})),graveyard:(game.graveyard||[]).map(x=>({...x})),over:game.over?{...game.over}:null,seq:game.seq,
     events:game.events.slice(-40).map(e=>({...e})),log:game.log.slice(0,50).map(x=>({...x})),crossPool:game.crossPool,doubleCoin:game.doubleCoin,paused:disconnected,
     chain:game.chain?{...game.chain,order:game.chain.order.slice(),stack:game.chain.stack.map(x=>({...x}))}:null,pendingChoice:game.pendingChoice?{...game.pendingChoice}:null,
-    mulligan:game.mulligan?{order:game.mulligan.order.slice(),cursor:game.mulligan.cursor,done:game.mulligan.done.slice()}:null,
+    mulligan:game.mulligan?{mode:game.mulligan.mode||'sequential',order:game.mulligan.order.slice(),cursor:game.mulligan.cursor,done:game.mulligan.done.slice()}:null,
     delayedEffects:(game.delayedEffects||[]).map(x=>({...x})),teamManaBonus:(game.teamManaBonus||[0,0]).slice(),
     players:game.players.map(p=>({seat:p.seat,name:p.name,warlordId:p.warlordId,role:p.role,faction:p.faction,mana:p.mana,maxMana:p.maxMana,
       pendingMana:p.pendingMana||0,tempMana:p.tempMana||0,inspired:!!p.inspired,heroUsed:!!p.heroUsed,heroSpent:!!p.heroSpent,heroUpgrade:p.heroUpgrade||null,healedThisTurn:!!p.healedThisTurn,
@@ -3206,11 +3211,12 @@ function hostApplyGameAction(clientId,msgOrAction){
   const raw=onlineEnvelope?msgOrAction.payload.action:msgOrAction;
   const cacheKey=clientId+':'+requestId;
   if(HOST.requestCache.has(cacheKey)){sendGameTo(clientId);return;}
-  if(baseRevision!==HOST.revision){sendHostError(clientId,'O jogo avançou; sua tela foi atualizada.');sendGameTo(clientId);return;}
+  const seat=seatForClient(clientId),a=sanitizeAction(raw),parallelMulligan=HOST.game.mulligan?.mode==='simultaneous'&&a?.type==='mulligan'&&canChooseMulligan(HOST.game,seat);
+  if(baseRevision!==HOST.revision&&!parallelMulligan){sendHostError(clientId,'O jogo avançou; sua tela foi atualizada.');sendGameTo(clientId);return;}
   if(HOST.lobby.seats.some(id=>!HOST.lobby.members[id]?.connected)){sendHostError(clientId,'Partida pausada enquanto um jogador reconecta.');return;}
-  const seat=seatForClient(clientId),a=sanitizeAction(raw);
-  if(seat==null||seat!==currentActorSeat(HOST.game)||!a){sendHostError(clientId,'Ação fora da prioridade ou inválida.');return;}
-  const result=doAction(HOST.game,a);
+  const allowed=parallelMulligan||(seat!=null&&seat===currentActorSeat(HOST.game));
+  if(seat==null||!allowed||!a){sendHostError(clientId,'Ação fora da prioridade ou inválida.');return;}
+  const result=doAction(HOST.game,a,seat);
   if(!result?.ok){sendHostError(clientId,'Essa jogada não é mais válida.');sendGameTo(clientId);return;}
   hostRelayAim(clientId,{active:false});
   HOST.revision++;HOST.requestCache.set(cacheKey,{revision:HOST.revision});
@@ -3245,11 +3251,13 @@ function handleClientMessage(msg){
     NET.lobby=msg.payload.lobby;NET.localSeat=NET.lobby.youSeat;NET.phase='lobby';netSetStatus('online');renderLobby();return;
   }
   if(msg.type==='game_snapshot'){
-    const first=NET.phase!=='game',incomingRevision=Number(msg.payload.revision)||0,previousRevision=NET.revision,previousSelection=sel,hadPending=!!NET.pending;
+    const first=NET.phase!=='game',incomingRevision=Number(msg.payload.revision)||0,previousRevision=NET.revision,previousSelection=sel,pendingRequest=NET.pending,hadPending=!!pendingRequest;
     if(!first&&incomingRevision<previousRevision)return;
-    NET.phase='game';NET.localSeat=Number(msg.payload.viewerSeat);NET.revision=incomingRevision;NET.pending=null;if(first)lobbyMessage='';
+    NET.phase='game';NET.localSeat=Number(msg.payload.viewerSeat);NET.revision=incomingRevision;if(first)lobbyMessage='';
     G=msg.payload.game;sel=!hadPending&&!first&&incomingRevision===previousRevision&&selectionStillLegal(G,NET.localSeat,previousSelection)?previousSelection:null;
-    if(!G.mulligan||currentActorSeat(G)!==NET.localSeat){mulliganSelection.clear();mulliganSelectionSeat=null;}
+    const awaitingOwnParallelMulligan=!!pendingRequest&&G.mulligan?.mode==='simultaneous'&&!G.mulligan.done?.[NET.localSeat];
+    NET.pending=awaitingOwnParallelMulligan?pendingRequest:null;
+    if(!G.mulligan||!canChooseMulligan(G,NET.localSeat)){mulliganSelection.clear();mulliganSelectionSeat=null;}
     if(sharedAim&&sharedAim.seat!==currentActorSeat(G))setSharedAim(null);
     revealed=true;if(first)lastSeq=G.seq;render();if(!first)flushVFX();return;
   }
@@ -3679,7 +3687,7 @@ function lifeBox(team){
 }
 function ribbon(seat){
   const p = G.players[seat]; const w = WARLORDS[p.warlordId]; const t = teamOf(seat);
-  const active = currentActorSeat(G)===seat && !G.over;
+  const parallelMulligan=G.mulligan?.mode==='simultaneous',active = !G.over&&(parallelMulligan?!G.mulligan.done[seat]:currentActorSeat(G)===seat);
   const hc=playerHandCount(p),powerState=heroPowerDisplay(seat),passiveName=w.passive?String(w.passive).split(':')[0]:'Sem passivo';
   return `<div class="ribbon ${p.role} ${t===1?'teamB':''} ${active?'act':''}" data-seat="${seat}">
     <div class="ribbon-top">
@@ -3696,7 +3704,7 @@ function ribbon(seat){
       ${w.id==='ironbeard'?`<span title="Pólvora">🧨 <b>${p.powder||0}</b></span><span title="Tesouros na mão">💰 <b>${treasureCount(p)}</b></span>${p.nextBarrageBonus?`<span title="Bônus da próxima Barragem">💥 +${p.nextBarrageBonus}</span>`:''}`:''}
       ${w.id==='tomioka'?`<span title="Defesa Absoluta">🌊 <b>${p.absoluteCalm?'∞':p.absoluteDefense||0}</b></span><span title="Técnicas jogadas">💧 <b>${p.techniquesPlayedTotal||0}</b></span>${p.nextTechniqueDiscount?`<span title="Desconto da próxima Técnica">−${p.nextTechniqueDiscount}</span>`:''}`:''}
       ${w.id==='shizune'&&p.nextCombatPoison?`<span title="Beijo da Glicínia preparado">🦋 <b>${p.nextCombatPoison}</b></span>`:''}
-      ${active?'<span style="color:#ffe3a4">▶ na vez</span>':''}
+      ${parallelMulligan?`<span style="color:${G.mulligan.done[seat]?'#9fe1a9':'#ffe3a4'}">${G.mulligan.done[seat]?'✓ pronto':'… escolhendo'}</span>`:active?'<span style="color:#ffe3a4">▶ na vez</span>':''}
     </div>
     <div class="power-dock">
       <button type="button" class="power-chip active-power ${powerState.key}" aria-label="Poder ativo ${esc(w.power.name)}, custo ${w.power.cost}. ${esc(powerState.label)}" onmouseenter="showWarlordPreview(${seat},this)" onmouseleave="hideCardPreview()" onfocus="showWarlordPreview(${seat},this)" onblur="hideCardPreview()" onclick="event.stopPropagation();toggleWarlordPreview(${seat},this)"><span class="power-symbol">✦</span><span class="power-name">${esc(w.power.name)}</span><span class="power-cost">${w.power.cost}</span></button>
@@ -3799,11 +3807,13 @@ function selBar(){
   const actor=currentActorSeat(G),p = G.players[actor],chain=G.chain,choice=G.pendingChoice;
   const mine=isMyTurn();
   if(G.mulligan){
+    const parallel=G.mulligan.mode==='simultaneous'&&NET.mode!=='local',mySeat=parallel?NET.localSeat:actor,myPlayer=G.players[mySeat]||p,ready=G.mulligan.done?.filter(Boolean).length||0,myDone=!!G.mulligan.done?.[mySeat];
     if(NET.pending)return `<div class="selbar"><b>Confirmando mulligan com o host...</b><div class="push"></div></div>`;
-    if(!mine)return `<div class="selbar">Mulligan · aguardando <b>${esc(p.name)}</b> escolher as cartas iniciais.<div class="push"><span class="net-status ${NET.status==='online'?'online':'warn'}">${NET.status==='online'?'sincronizado':'reconectando'}</span></div></div>`;
+    if(parallel&&myDone)return `<div class="selbar"><b>Seu mulligan está confirmado.</b> Aguardando os outros jogadores · ${ready}/4 prontos.<div class="push"><span class="net-status online">✓ pronto</span></div></div>`;
+    if(!mine)return `<div class="selbar">Mulligan · aguardando <b>${parallel?'os outros jogadores':esc(p.name)}</b> escolher as cartas iniciais · ${ready}/4 prontos.<div class="push"><span class="net-status ${NET.status==='online'?'online':'warn'}">${NET.status==='online'?'sincronizado':'reconectando'}</span></div></div>`;
     const count=mulliganSelection.size;
-    return `<div class="selbar attack"><b>Mulligan de ${esc(p.name)}</b> — selecione qualquer quantidade das 5 cartas normais para trocar. A Moeda é bônus e não pode ser trocada.
-      <div class="push"><span>${count} selecionada${count===1?'':'s'}</span><button class="btn primary" onclick="confirmMulligan()">${count?`Trocar ${count}`:'Manter as 5'} ✓</button></div></div>`;
+    return `<div class="selbar attack"><b>${parallel?'Seu mulligan':`Mulligan de ${esc(myPlayer.name)}`}</b> — selecione qualquer quantidade das 5 cartas normais para trocar. A Moeda é bônus e não pode ser trocada.
+      <div class="push"><span>${parallel?ready+'/4 prontos · ':''}${count} selecionada${count===1?'':'s'}</span><button class="btn primary" onclick="confirmMulligan()">${count?`Trocar ${count}`:'Manter as 5'} ✓</button></div></div>`;
   }
   const w=WARLORDS[p.warlordId];
   const endBtn = mine&&!['resurrection','sacrificePoison','bohemianChoice'].includes(choice?.kind)?`<button class="btn primary" onclick="onEnd()">${choice?'Encerrar Catalisador':chain?'Passar prioridade ✓':'Encerrar vez ⏭'}</button>`:'';
@@ -3823,7 +3833,8 @@ function selBar(){
   }
   if(choice?.kind==='resurrection'){
     const options=resurrectionChoiceTargets(G);
-    return `<div class="selbar attack"><b>Ressurreição</b> — escolha uma criatura aliada destruída:
+    const sourceName=CARDS[choice.sourceCardId]?.name||'Ressurreição',bonus=[choice.atk?`+${choice.atk} ATQ`:null,choice.shield?`${choice.shield} de Escudo`:null].filter(Boolean).join(' e ');
+    return `<div class="selbar attack"><b>${esc(sourceName)}</b> — escolha uma criatura aliada no cemitério${bonus?`; ela retornará com ${esc(bonus)}`:''}:
       <div class="push">${options.map(({dead,graveIndex})=>{const c=CARDS[dead.cardId];return `<button class="btn secondary" onclick="chooseResurrection(${graveIndex})" onmouseenter="showCardPreview('${dead.cardId}',this)" onmouseleave="hideCardPreview()" title="${esc(c?.text||'')}">${c?.icon||'🕊️'} ${esc(c?.name||'Criatura')} · ${c?.cost||0}</button>`;}).join('')}</div></div>`;
   }
   if(choice?.kind==='bohemianChoice'){
@@ -3926,7 +3937,7 @@ function renderBoard(){
   const p = G.players[G.active];
   const priorityPlayer=G.players[currentActorSeat(G)];
   const me=NET.mode==='local'?null:G.players[NET.localSeat];
-  const viewTeam=viewTeamForClient(),farTeam=1-viewTeam;
+  const viewTeam=viewTeamForClient(),farTeam=1-viewTeam,mulliganReady=G.mulligan?.done?.filter(Boolean).length||0;
   return `<div class="shell">
     <div class="topbar">
       <span class="brand">AGE OF GUTHOLOGY · 2v2</span>
@@ -3934,7 +3945,7 @@ function renderBoard(){
       <span class="chip">Arena única · ${LANE_CAP} espaços/time</span>
       <span class="chip">Catch-up: ${G.doubleCoin?'calibrado':'original'}</span>
       <span class="chip turn" role="status" aria-live="polite">▶ ${esc(p.name)} — ${roleLabel(p.role)} · ${teamLabel(teamOf(G.active))}</span>
-      ${G.mulligan?`<span class="chip turn">🂠 Mulligan: ${esc(priorityPlayer.name)}</span>`:''}
+      ${G.mulligan?`<span class="chip turn">🂠 Mulligan: ${G.mulligan.mode==='simultaneous'?`${mulliganReady}/4 prontos`:esc(priorityPlayer.name)}</span>`:''}
       ${G.chain?`<span class="chip turn">⚡ Prioridade: ${esc(priorityPlayer.name)} · pilha ${G.chain.stack.length}</span>`:''}
       ${G.pendingChoice?`<span class="chip turn">${G.pendingChoice.kind==='sacrificePoison'?'🕯️ Sacrifício da Oferenda':G.pendingChoice.kind==='resurrection'?'🕊️ Escolha da Ressurreição':G.pendingChoice.kind==='bohemianChoice'?'🍺 Escolha Boêmia':'⚗️ Escolha do Catalisador'}: ${esc(priorityPlayer.name)}</span>`:''}
       ${me?`<span class="net-status ${NET.status==='online'?'online':'warn'}">Sala ${esc(NET.roomCode)} · Você: ${esc(me.name)} · ${teamLabel(teamOf(me.seat))} ${roleLabel(me.role)}</span>`:''}
