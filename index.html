@@ -27,6 +27,7 @@ body.battle-mode #battle3d{opacity:1;visibility:visible;transition-delay:0s;poin
 #app{position:relative;z-index:2}
 body.battle-mode #app{pointer-events:none}
 body.battle-mode #app .topbar,body.battle-mode #app .notice,body.battle-mode #app .team-panel,body.battle-mode #app .selbar,body.battle-mode #app .hand-wrap,body.battle-mode #app .history,body.battle-mode #app .gate,body.battle-mode #app .overlay{pointer-events:auto}
+body.spell-committing #app,body.spell-committing #battle3d{pointer-events:none!important}
 body.dragging-card,body.dragging-card *{cursor:grabbing!important}
 button,select,input{font:inherit}button{color:inherit;cursor:pointer}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid rgba(228,189,104,.6);outline-offset:2px}
@@ -128,6 +129,11 @@ body.enemy-turn-view #battle3d canvas{filter:saturate(1.07) contrast(1.025)}
 .side-caption{text-align:center;text-transform:uppercase;letter-spacing:.16em;font-size:9px;font-weight:900;color:#b9aa92;padding:2px 4px 0}.team-panel.near .side-caption{color:#ffd6a4}.team-panel.far .side-caption{color:#b9dcf5}
 .team-panel.a{border-color:#7a4a2b}.team-panel.b{border-color:#33567a}
 .team-panel.act{box-shadow:0 0 0 1px rgba(228,189,104,.25),0 8px 22px rgba(0,0,0,.3)}
+.team-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;border-top:1px solid rgba(228,189,104,.16);padding-top:7px}
+.team-action{min-width:0;border:1px solid #69543c;border-radius:9px;background:linear-gradient(180deg,rgba(62,45,28,.96),rgba(27,21,16,.98));padding:6px 7px;color:#ead5a7;text-align:left;box-shadow:0 4px 10px rgba(0,0,0,.24)}
+.team-action .action-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:700 9px Georgia,serif}.team-action .action-meta{display:block;margin-top:2px;color:#a99b85;font-size:7px}
+.team-action.inspire{border-color:#416d89;color:#bfe7ff;background:linear-gradient(180deg,rgba(30,58,75,.96),rgba(15,27,34,.98))}
+.team-action:hover:not(:disabled){filter:brightness(1.16);border-color:#e4bd68}.team-action:disabled{opacity:.38;cursor:not-allowed;filter:saturate(.5)}
 .life-box{border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;justify-content:center;gap:6px;position:relative;overflow:hidden}
 .team-panel.a .life-box{background:linear-gradient(140deg,#3a2214,#1a0f0a);border:1px solid #7a4a2b}
 .team-panel.b .life-box{background:linear-gradient(140deg,#152836,#0c151d);border:1px solid #33567a}
@@ -284,14 +290,14 @@ body.enemy-turn-view #battle3d canvas{filter:saturate(1.07) contrast(1.025)}
 .compact-hand .hand-mini{position:absolute;z-index:1;left:10px;bottom:3px;display:flex;align-items:center;gap:6px;border:1px solid rgba(119,91,52,.72);border-radius:999px;background:rgba(18,14,11,.86);padding:3px 8px;color:#a99d8b;font-size:8px;letter-spacing:.04em;box-shadow:0 5px 13px rgba(0,0,0,.34);pointer-events:auto}
 .compact-hand .hand-mini b{color:#ead39d;font:700 9px Georgia,serif}.compact-hand .hand-mini .mana{color:#a9dcf7;font-weight:900}
 .compact-hand .hand-scroll{height:132px;min-height:132px;justify-content:center;align-items:flex-end;gap:0;overflow:visible;padding:25px 12px 3px;pointer-events:none}
-.compact-hand .hand-card{flex:0 0 var(--hand-card-w,92px);width:var(--hand-card-w,92px);height:114px;min-height:114px;margin-left:var(--hand-overlap,-14px);padding:5px;gap:2px;pointer-events:auto;transform:translateY(var(--fan-y,0)) rotate(var(--fan-r,0));transform-origin:50% 135%;z-index:var(--hand-z,1);transition:.18s transform,.14s border-color,.14s box-shadow,.14s filter}
+.compact-hand .hand-card{box-sizing:border-box;flex:0 0 var(--hand-card-w,92px)!important;width:var(--hand-card-w,92px)!important;max-width:var(--hand-card-w,92px)!important;height:114px!important;min-height:114px!important;max-height:114px!important;align-self:flex-end;margin-left:var(--hand-overlap,-14px);padding:5px;gap:2px;pointer-events:auto;transform:translateY(var(--fan-y,0)) rotate(var(--fan-r,0));transform-origin:50% 135%;z-index:var(--hand-z,1);transition:.18s transform,.14s border-color,.14s box-shadow,.14s filter}
 .compact-hand .hand-card:first-child{margin-left:0}
 .compact-hand .hand-card .art{height:42px;font-size:23px}.compact-hand .hand-card .cost{top:4px;left:4px;width:21px;height:21px;font-size:11px}
 .compact-hand .hand-card .ctype{font-size:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.compact-hand .hand-card .cname{font-size:10px;line-height:1.06;min-height:21px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .compact-hand .hand-card .ctext{display:none}.compact-hand .hand-card .cstats{right:3px;top:31px;gap:1px}.compact-hand .hand-card .cstats b{min-width:22px;padding:1px 3px;font-size:7px}
 .compact-hand .hand-card>.tribe-badge{left:7px;top:39px;max-width:70px;padding:1px 4px;font-size:6px}
-.compact-hand .hand-card:hover:not(:disabled),.compact-hand .hand-card:focus-visible{z-index:80;transform:translateY(-35px) rotate(0) scale(1.12);border-color:#f2c86f;filter:brightness(1.12);box-shadow:0 0 0 2px rgba(242,200,111,.2),0 22px 34px rgba(0,0,0,.7)}
-.compact-hand .hand-card.selected{z-index:70;transform:translateY(-26px) rotate(0) scale(1.07)}.compact-hand .hand-card.mulligan-picked{z-index:70;transform:translateY(-25px) rotate(0) scale(1.06)}
+.compact-hand .hand-card:hover:not(:disabled),.compact-hand .hand-card:focus-visible{z-index:80;transform:translateY(-35px) rotate(0);border-color:#f2c86f;filter:brightness(1.12);box-shadow:0 0 0 2px rgba(242,200,111,.2),0 22px 34px rgba(0,0,0,.7)}
+.compact-hand .hand-card.selected{z-index:70;transform:translateY(-26px) rotate(0)}.compact-hand .hand-card.mulligan-picked{z-index:70;transform:translateY(-25px) rotate(0)}
 .tribe-badge{display:inline-flex;align-items:center;gap:3px;border:1px solid #756344;border-radius:999px;background:rgba(8,7,8,.88);padding:2px 6px;color:#ead9b3;font-size:8px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
 .hand-card>.tribe-badge{position:absolute;z-index:3;left:10px;top:47px;max-width:88px;overflow:hidden;text-overflow:ellipsis}
 .hand-card.preview-card>.tribe-badge{top:76px;font-size:9px;padding:3px 7px;max-width:145px}
@@ -2576,7 +2582,7 @@ function cardPreviewMarkup(cardId,unitUid){
     ${tags.length?`<div class="preview-tags">${tags.map(t=>`<span class="preview-tag">${esc(t)}</span>`).join('')}</div>`:''}${live}
   </div>`;
 }
-let sharedAim=null,sharedAimFrame=0,lastAimNetworkAt=0;
+let sharedAim=null,sharedAimFrame=0,lastAimNetworkAt=0,spellCommitPending=false;
 function ensureSharedAimLayer(){
   const host=document.getElementById('vfx');if(!host)return null;
   let layer=document.getElementById('shared-aim');
@@ -2608,23 +2614,27 @@ function aimStartAtCardEdge(cardBox,end){
   const y=Math.max(r.top+10,Math.min(end.y,r.bottom-10));
   return {x,y};
 }
+function handCardAnchor(cardUid){
+  return [...document.querySelectorAll('[data-card-uid]')].find(el=>String(el.dataset.cardUid)===String(cardUid))||null;
+}
 function renderSharedAim(){
   const layer=ensureSharedAimLayer();if(!layer)return;
   if(!sharedAim?.active){layer.classList.remove('active','valid');return;}
   const battle=typeof battleTable3D!=='undefined'?battleTable3D:null;
   const cardBox=layer.querySelector('.aim-revealed-card');
-  const wantedCard=sharedAim.kind==='spell'?sharedAim.cardId:null;
+  const spellAim=sharedAim.kind==='spell',spellCommitted=spellAim&&sharedAim.committed===true;
+  const wantedCard=spellCommitted?sharedAim.cardId:null;
   if(cardBox.dataset.cardId!==(wantedCard||'')){cardBox.dataset.cardId=wantedCard||'';cardBox.innerHTML=wantedCard?cardPreviewMarkup(wantedCard):'';}
   let end=sharedAim.targetUid!=null?aimCenter(battle?.anchorForUid(sharedAim.targetUid)):null;
   if(!end&&Number.isFinite(sharedAim.boardX)&&Number.isFinite(sharedAim.boardZ))end=battle?.screenForBoardPoint(sharedAim.boardX,sharedAim.boardZ)||null;
   if(!end&&Number.isFinite(sharedAim.nx)&&Number.isFinite(sharedAim.ny))end={x:sharedAim.nx*innerWidth,y:sharedAim.ny*innerHeight};
   if(wantedCard&&end)placeCommittedAimCard(cardBox,end);
-  const start=sharedAim.kind==='attack'?aimCenter(battle?.anchorForUid(sharedAim.sourceUid)):aimStartAtCardEdge(cardBox,end||{x:innerWidth/2,y:innerHeight/2});
+  const start=sharedAim.kind==='attack'?aimCenter(battle?.anchorForUid(sharedAim.sourceUid)):spellCommitted?aimStartAtCardEdge(cardBox,end||{x:innerWidth/2,y:innerHeight/2}):aimCenter(handCardAnchor(sharedAim.cardUid))||{x:sharedAim.startX||innerWidth/2,y:sharedAim.startY||innerHeight-30};
   if(!start||!end){layer.classList.remove('active');return;}
   const bend=Math.min(72,Math.max(18,Math.hypot(end.x-start.x,end.y-start.y)*.09)),mx=(start.x+end.x)/2,my=(start.y+end.y)/2-bend,path=`M ${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
   layer.querySelector('.aim-shadow').setAttribute('d',path);layer.querySelector('.aim-line').setAttribute('d',path);
   const reticle=layer.querySelector('.aim-reticle');reticle.setAttribute('cx',end.x);reticle.setAttribute('cy',end.y);
-  const label=layer.querySelector('.aim-label'),player=G?.players?.[sharedAim.seat];label.textContent=sharedAim.kind==='spell'?`${player?.name||'Jogador'} está mirando com ${CARDS[sharedAim.cardId]?.name||'uma magia'}`:`${player?.name||'Jogador'} está mirando um ataque`;
+  const label=layer.querySelector('.aim-label'),player=G?.players?.[sharedAim.seat];label.textContent=spellAim?(spellCommitted?`${player?.name||'Jogador'} confirmou ${CARDS[sharedAim.cardId]?.name||'uma magia'}`:'Escolhendo um alvo · a carta ainda está oculta'):`${player?.name||'Jogador'} está mirando um ataque`;
   label.style.left=mx+'px';label.style.top=my+'px';layer.classList.toggle('valid',!!sharedAim.valid);layer.classList.add('active');
 }
 function sharedAimLoop(){
@@ -2726,7 +2736,7 @@ const setup = {
 const CARRY_OPTS = ['raven','viking','druid','succubus','pirate','bloodlord','rats','seyren','flamel','ironbeard','dravos','shizune'];
 const SUPPORT_OPTS = ['vale','miku','priest','enchantress','arena','druid','rats','flamel','margaretha','ironbeard','dravos','tomioka'];
 
-const NET_PROTOCOL='gutho-2v2-v23', BUILD_ID='2026-07-27-compact-hand1', ROOM_PREFIX='gutho-2v2-v23-';
+const NET_PROTOCOL='gutho-2v2-v24', BUILD_ID='2026-07-27-release-target1', ROOM_PREFIX='gutho-2v2-v24-';
 const NET={mode:'local',phase:'menu',peer:null,hostConn:null,connections:new Map(),roomCode:'',
   clientId:'',resumeToken:'',localSeat:null,status:'offline',revision:0,pending:null,retry:0,retryTimer:null,roomPublic:false};
 const HOST={lobby:null,game:null,revision:0,requestCache:new Map()};
@@ -3697,12 +3707,24 @@ function ribbon(seat){
 function viewTeamForClient(){
   const seat=NET.mode==='local'?(G?currentActorSeat(G):null):NET.localSeat;return Number.isInteger(seat)?teamOf(seat):teamOf(G?.active??0);
 }
+function teamActionMenu(team,placement){
+  if(placement!=='near'||!G||G.over||G.mulligan)return '';
+  const actor=currentActorSeat(G),p=G.players[actor];if(!p||teamOf(actor)!==team)return '';
+  const mine=isMyTurn(),chain=G.chain,choice=G.pendingChoice,w=WARLORDS[p.warlordId];
+  const canInspire=!chain&&!choice&&mine&&G.crossPool&&!p.inspired&&p.mana-(p.tempMana||0)>=1&&(G.players[partnerOf(actor)].pendingMana||0)<2;
+  const powerReady=!chain&&!choice&&mine&&canUseHeroPower(G,actor);
+  const inspire=G.crossPool?`<button class="team-action inspire" ${canInspire?'':'disabled'} onclick="onInspire()" title="Gaste 1 de Mana para reservar +1 de Mana para a próxima vez da sua dupla"><span class="action-title">✨ Inspirar dupla</span><span class="action-meta">${canInspire?'1 Mana · +1 reservada':'Indisponível agora'}</span></button>`:'';
+  return `<div class="team-actions" aria-label="Ações de ${esc(p.name)}">
+    <button class="team-action warlord-action" ${powerReady?'':'disabled'} onclick="onHero()" title="${esc(w.power.text)}"><span class="action-title">✦ ${esc(w.power.name)}</span><span class="action-meta">${powerReady?w.power.cost+' Mana · usar poder':'Poder indisponível'}</span></button>
+    ${inspire}
+  </div>`;
+}
 function teamPanel(team,placement=''){
   const act = teamOf(G.active)===team && !G.over;
   const seats = teamSeats(team);
   const sideLabel = placement==='near' ? 'SEU TIME' : 'OPONENTES';
   return `<div class="team-panel ${team===0?'a':'b'} ${placement} ${act?'act':''}">
-    <div class="side-caption">${sideLabel}</div>${lifeBox(team)}${ribbon(seats[0])}${ribbon(seats[1])}
+    <div class="side-caption">${sideLabel}</div>${lifeBox(team)}${ribbon(seats[0])}${ribbon(seats[1])}${teamActionMenu(team,placement)}
   </div>`;
 }
 
@@ -3783,10 +3805,7 @@ function selBar(){
     return `<div class="selbar attack"><b>Mulligan de ${esc(p.name)}</b> — selecione qualquer quantidade das 5 cartas normais para trocar. A Moeda é bônus e não pode ser trocada.
       <div class="push"><span>${count} selecionada${count===1?'':'s'}</span><button class="btn primary" onclick="confirmMulligan()">${count?`Trocar ${count}`:'Manter as 5'} ✓</button></div></div>`;
   }
-  const canInspire = !chain&&!choice&&mine&&G.crossPool&&!p.inspired&&p.mana-(p.tempMana||0)>=1&&(G.players[partnerOf(actor)].pendingMana||0)<2;
-  const inspireBtn = G.crossPool?`<button class="btn secondary ${canInspire?'':'action-locked'}" aria-disabled="${!canInspire}" onclick="onInspire()">✨ Inspirar: +1 na próxima vez</button>`:'';
-  const w=WARLORDS[p.warlordId],powerReady=!chain&&!choice&&mine&&canUseHeroPower(G,actor);
-  const powerBtn=`<button class="hero-btn ${powerReady?'':'locked'}" aria-disabled="${!powerReady}" title="${esc(w.power.text)}" onclick="onHero()">✦ ${esc(w.power.name)} (${w.power.cost})</button>`;
+  const w=WARLORDS[p.warlordId];
   const endBtn = mine&&!['resurrection','sacrificePoison','bohemianChoice'].includes(choice?.kind)?`<button class="btn primary" onclick="onEnd()">${choice?'Encerrar Catalisador':chain?'Passar prioridade ✓':'Encerrar vez ⏭'}</button>`:'';
   if(NET.pending)return `<div class="selbar"><b>Validando jogada com o host...</b><div class="push"></div></div>`;
   if(!mine)return `<div class="selbar">${choice?.kind==='resurrection'?'Ressurreição · aguardando escolha de':choice?.kind==='sacrificePoison'?'Oferenda de Luto · aguardando sacrifício de':choice?'Catalisador · aguardando nova escolha de':chain?'Pilha aberta · aguardando resposta de':'Aguardando'} <b>${esc(p.name)}</b> · ${roleLabel(p.role)} do ${teamLabel(teamOf(actor))}.
@@ -3847,7 +3866,7 @@ function selBar(){
       <div class="push">${endBtn}</div></div>`;
   }
   return `<div class="selbar">Vez de <b>${esc(p.name)}</b> (${roleLabel(p.role)}, ${teamLabel(teamOf(actor))}). Jogue cartas, ataque, ou encerre.
-    <div class="push">${powerBtn}${inspireBtn}${endBtn}</div></div>`;
+    <div class="push">${endBtn}</div></div>`;
 }
 
 function handWrap(){
@@ -4342,14 +4361,14 @@ class BattleTable3D{
     const r=stage.getBoundingClientRect(),offset=Math.round(r.top+r.height/2-innerHeight/2);canvas.style.transform=`translate3d(0,${offset}px,0)`;
   }
   beginCardDrag(event,cardUid){
-    if(!this.ready||!this.visible||this.drag||!G||!revealed||!isMyTurn())return;
+    if(!this.ready||!this.visible||this.drag||spellCommitPending||!G||!revealed||!isMyTurn())return;
     const p=G.players[localSeat()],entry=p?.hand?.find(e=>String(e.uid)===String(cardUid));if(!entry)return;const cardId=cardIdOf(entry),card=CARDS[cardId];
     const legal=card.targetUnit?validCardTargetUids(G,p.seat,card).some(uid=>canPlay(G,p.seat,cardUid,undefined,uid)):card.global?canPlay(G,p.seat,cardUid):canPlay(G,p.seat,cardUid,0);
     if(!legal)return;
     this.renderer.domElement.style.transform='';
     const team=teamOf(p.seat),aimMode=card.type==='tactic'&&!!card.targetUnit;let mesh=null;
     if(!aimMode){mesh=this.makeFloatingCard(cardId,team);const baseRotationZ=viewTeamForClient()?Math.PI:0;mesh.position.set(0,1.25,viewTeamForClient()?-5.1:5.1);mesh.rotation.z=baseRotationZ;mesh.userData.baseRotationZ=baseRotationZ;}
-    this.drag={cardUid:String(cardUid),cardId,card,team,mesh,aimMode,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,moved:false,valid:false,targetUid:null,committed:false,lastValidTargetUid:null};
+    this.drag={cardUid:String(cardUid),cardId,card,team,mesh,aimMode,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,moved:false,valid:false,targetUid:null,committed:false};
     try{event.currentTarget?.setPointerCapture?.(event.pointerId);}catch(e){}
     hideCardPreview(true);document.body.classList.add('dragging-card');this.updateDrag(event);
   }
@@ -4371,8 +4390,7 @@ class BattleTable3D{
     const d=this.drag;if(!d||event.pointerId!==d.pointerId)return;const dist=Math.hypot(event.clientX-d.startX,event.clientY-d.startY);if(dist>7)d.moved=true;
     const result=this.dragResult(event.clientX,event.clientY);d.valid=result.valid;d.targetUid=result.targetUid;
     if(d.aimMode){
-      if(result.valid){d.lastValidTargetUid=result.targetUid;if(!d.committed){d.committed=true;this.publishSpellAim(event,result,true);}}
-      if(d.committed)this.publishSpellAim(event,result,false);
+      setSharedAim({active:true,kind:'spell',seat:localSeat(),cardUid:d.cardUid,committed:false,targetUid:result.valid?result.targetUid:null,valid:!!result.valid,startX:d.startX,startY:d.startY,...this.aimPointerData(event,result)});
       this.setDropFeedback(result.overStage,result.valid);return;
     }
     if(result.point){const local=this.table.worldToLocal(result.point.clone());local.y=1.1;d.mesh.position.lerp(local,.38);const rot=(d.mesh.userData.baseRotationZ||0)+this.pointer.x*.1;d.mesh.rotation.z+=(rot-d.mesh.rotation.z)*.16;}
@@ -4386,12 +4404,14 @@ class BattleTable3D{
   }
   finishDrag(event,cancel=false){
     const d=this.drag;if(!d||event.pointerId!==d.pointerId)return;this.updateDrag(event);
-    const moved=d.moved,play=d.aimMode?d.committed&&d.lastValidTargetUid!=null:!cancel&&moved&&d.valid;
-    let action=null;if(play){if(d.card.targetUnit)action={type:'play',cardUid:d.cardUid,targetUid:d.aimMode?d.lastValidTargetUid:d.targetUid};else if(d.card.global)action={type:'play',cardUid:d.cardUid};else action={type:'play',cardUid:d.cardUid,lane:0};}
-    if(d.committed)publishAim({active:false},true);
+    const result=this.dragResult(event.clientX,event.clientY),moved=d.moved,play=!cancel&&moved&&d.valid;
+    let action=null;if(play){if(d.card.targetUnit)action={type:'play',cardUid:d.cardUid,targetUid:d.targetUid};else if(d.card.global)action={type:'play',cardUid:d.cardUid};else action={type:'play',cardUid:d.cardUid,lane:0};}
+    if(d.aimMode){if(play){d.committed=true;this.publishSpellAim(event,result,true);}else setSharedAim(null);}
     if(d.mesh){this.table.remove(d.mesh);d.mesh.geometry.dispose();d.mesh.material.forEach(m=>m.dispose());}
     this.drag=null;this.setDropFeedback(false);document.body.classList.remove('dragging-card');this.alignToStage();
-    if(moved){this.suppressClickUid=d.cardUid;setTimeout(()=>{if(this.suppressClickUid===d.cardUid)this.suppressClickUid=null;},0);}if(action)dispatchGameAction(action);
+    if(moved){this.suppressClickUid=d.cardUid;setTimeout(()=>{if(this.suppressClickUid===d.cardUid)this.suppressClickUid=null;},0);}
+    if(action&&d.aimMode){spellCommitPending=true;document.body.classList.add('spell-committing');setTimeout(()=>{spellCommitPending=false;document.body.classList.remove('spell-committing');dispatchGameAction(action);},650);}
+    else if(action)dispatchGameAction(action);
   }
   consumeSuppressedClick(cardUid){
     if(this.suppressClickUid!=null&&String(cardUid)===String(this.suppressClickUid)){this.suppressClickUid=null;return true;}return false;
@@ -4403,7 +4423,7 @@ class BattleTable3D{
     return {valid:validTarget||face,targetUid:validTarget?targetUid:null,face,point,overStage:!!point};
   }
   beginAttackAim(event,sourceUid){
-    if(this.aim||this.drag||!canAttackWith(G,localSeat(),sourceUid))return;
+    if(this.aim||this.drag||spellCommitPending||!canAttackWith(G,localSeat(),sourceUid))return;
     this.canvasPress=null;this.renderer.domElement.style.transform='';this.aim={sourceUid:Number(sourceUid),pointerId:event.pointerId,valid:false,targetUid:null,face:false};
     document.body.classList.add('aiming-attack');hideCardPreview(true);this.updateAttackAim(event,true);
   }
